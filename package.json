@@ -1,0 +1,21 @@
+{
+  "name": "telecom-reserva-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "esbuild index.tsx --bundle --outfile=dist/bundle.js --define:process.env.NODE_ENV='\"production\"' --define:process.env.EMAILJS_SERVICE_ID='\"$EMAILJS_SERVICE_ID\"' --define:process.env.EMAILJS_TEMPLATE_ID='\"$EMAILJS_TEMPLATE_ID\"' --define:process.env.EMAILJS_PUBLIC_KEY='\"$EMAILJS_PUBLIC_KEY\"' && cp index.html dist/index.html && cp favicon.ico dist/favicon.ico && cp manifest.json dist/manifest.json && cp sw.js dist/sw.js"
+  },
+  "dependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-router-dom": "^7.9.1",
+    "react-transition-group": "^4.4.5"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "@types/react-transition-group": "^4.4.0",
+    "esbuild": "^0.23.0",
+    "typescript": "^5.0.0"
+  }
+}

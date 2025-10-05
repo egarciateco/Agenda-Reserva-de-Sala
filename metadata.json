@@ -1,0 +1,5 @@
+{
+  "name": "Reserva de Sala de TELECOM",
+  "description": "La presente aplicación funciona como agenda de reservas para uso de salas de reuniones dentro de las bases de Telecom.",
+  "requestFramePermissions": []
+}

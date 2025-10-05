@@ -1,0 +1,35 @@
+{
+  "short_name": "Reserva Telecom",
+  "name": "Reserva de Sala de TELECOM",
+  "description": "La presente aplicación funciona como agenda de reservas para uso de salas de reuniones dentro de las bases de Telecom.",
+  "icons": [
+    {
+      "src": "https://i.postimg.cc/gJHg44fB/Reserva-Sala-Telecom.jpg",
+      "type": "image/jpeg",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://i.postimg.cc/gJHg44fB/Reserva-Sala-Telecom.jpg",
+      "type": "image/jpeg",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://i.postimg.cc/ZnKqNd56/Image-To-Stl-com-Reserva-Sala-Telecom.webp",
+      "type": "image/webp",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://i.postimg.cc/ZnKqNd56/Image-To-Stl-com-Reserva-Sala-Telecom.webp",
+      "type": "image/webp",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#2563eb",
+  "background_color": "#111827"
+}
