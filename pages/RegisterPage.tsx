@@ -47,6 +47,7 @@ const RegisterPage: FC = () => {
         adminCode: ''
     });
     const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     
     const isRegisteringAsAdmin = formData.role === 'Administrador';
 
@@ -77,42 +78,47 @@ const RegisterPage: FC = () => {
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setError('');
+        setIsLoading(true);
         
         const phoneDigits = formData.phone.replace(/\D/g, '');
         if (phoneDigits.length !== 10) {
             setError('El número de celular debe tener 10 dígitos.');
+            setIsLoading(false);
             return;
         }
 
-        let passwordToRegister = '';
+        if (formData.password.length < 6) {
+            setError('La contraseña debe tener al menos 6 caracteres.');
+            setIsLoading(false);
+            return;
+        }
+        if (formData.password !== formData.confirmPassword) {
+            setError('Las contraseñas no coinciden.');
+            setIsLoading(false);
+            return;
+        }
 
-        if (isRegisteringAsAdmin) {
-            if (formData.adminCode !== adminSecretCode) {
-                setError('El código de administrador es incorrecto.');
-                return;
-            }
-            passwordToRegister = formData.adminCode;
-        } else {
-            if (formData.password.length < 6) {
-                setError('La contraseña debe tener al menos 6 caracteres.');
-                return;
-            }
-            if (formData.password !== formData.confirmPassword) {
-                setError('Las contraseñas no coinciden.');
-                return;
-            }
-            passwordToRegister = formData.password;
+        if (isRegisteringAsAdmin && formData.adminCode !== adminSecretCode) {
+            setError('El código de administrador es incorrecto.');
+            setIsLoading(false);
+            return;
         }
 
         const { password, confirmPassword, adminCode, ...userData } = formData;
         
-        const success = await register(userData, passwordToRegister);
-        
-        if (success) {
-            addToast('¡Cuenta creada exitosamente! Por favor, inicie sesión.', 'success');
-            navigate('/login');
-        } else {
-            setError('El email ya está registrado.');
+        try {
+            const success = await register(userData, password);
+            if (success) {
+                addToast('¡Cuenta creada exitosamente! Por favor, inicie sesión.', 'success');
+                navigate('/login');
+            } else {
+                // The error toast is now shown from the context for more specific errors like "email-already-in-use"
+                setError('No se pudo crear la cuenta. Intente de nuevo.');
+            }
+        } catch (err) {
+            setError('Ocurrió un error inesperado al registrar la cuenta.');
+        } finally {
+            setIsLoading(false);
         }
     };
     
@@ -146,19 +152,19 @@ const RegisterPage: FC = () => {
                         <select name="role" value={formData.role} onChange={handleChange} required className="md:col-span-2 input-style">
                             {roles.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
                         </select>
+                        
+                        <PasswordInput name="password" value={formData.password} placeholder="Contraseña (mín. 6 caracteres)" onChange={handleChange} required />
+                        <PasswordInput name="confirmPassword" value={formData.confirmPassword} placeholder="Confirmar Contraseña" onChange={handleChange} required />
 
-                        {isRegisteringAsAdmin ? (
+                        {isRegisteringAsAdmin && (
                             <div className="md:col-span-2 transition-all duration-300">
                                 <PasswordInput name="adminCode" value={formData.adminCode} placeholder="Código de Administrador" onChange={handleChange} required />
                             </div>
-                        ) : (
-                            <>
-                                <PasswordInput name="password" value={formData.password} placeholder="Contraseña" onChange={handleChange} required />
-                                <PasswordInput name="confirmPassword" value={formData.confirmPassword} placeholder="Confirmar Contraseña" onChange={handleChange} required />
-                            </>
                         )}
                         
-                        <button type="submit" className="md:col-span-2 w-full py-3 mt-4 bg-blue-600 hover:bg-blue-700 rounded-md transition-colors">Crear Cuenta</button>
+                        <button type="submit" className="md:col-span-2 w-full py-3 mt-4 bg-blue-600 hover:bg-blue-700 rounded-md transition-colors disabled:bg-blue-800" disabled={isLoading}>
+                            {isLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
+                        </button>
                     </form>
                     <p className="mt-6 text-center text-sm text-gray-400">
                         ¿Ya tienes una cuenta?{' '}

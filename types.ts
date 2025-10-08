@@ -6,7 +6,6 @@ export interface User {
   phone: string;
   sector: string;
   role: string;
-  passwordHash: string;
 }
 
 export interface Sector {
@@ -84,7 +83,7 @@ export interface AppContextType {
     triggerPwaInstall: () => void;
     login: (email: string, pass: string) => Promise<boolean>;
     logout: () => void;
-    register: (user: Omit<User, 'id' | 'passwordHash'>, pass: string) => Promise<boolean>;
+    register: (user: Omit<User, 'id'>, pass: string) => Promise<boolean>;
     addBooking: (booking: Omit<Booking, 'id'>) => Promise<string>;
     deleteBooking: (bookingId: string) => Promise<void>;
     updateBooking: (booking: Booking) => Promise<void>;

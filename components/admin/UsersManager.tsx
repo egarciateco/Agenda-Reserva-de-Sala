@@ -50,7 +50,7 @@ const UsersManager: FC = () => {
     };
     
     const handleDelete = (user: User) => {
-        showConfirmation(`¿Seguro que quieres eliminar a ${user.firstName} ${user.lastName}?`, async () => {
+        showConfirmation(`¿Seguro que quieres eliminar a ${user.firstName} ${user.lastName}? Su cuenta de autenticación no se eliminará, pero sí todos sus datos y reservas en la aplicación.`, async () => {
             setDeletingId(user.id);
             setShowMenu(null);
             try {

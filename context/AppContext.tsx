@@ -1,9 +1,11 @@
 import { createContext, useState, useEffect, useCallback, FC, ReactNode } from 'react';
 import { User, Sector, Role, Booking, AppSettings, ToastMessage, AppContextType, ConfirmationState, Sala, ConfirmationOptions } from '../types';
 import { INITIAL_ROLES, INITIAL_SECTORS, DEFAULT_LOGO_URL, DEFAULT_BACKGROUND_URL, INITIAL_ADMIN_SECRET_CODE, DEFAULT_HOME_BACKGROUND_URL, EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, EMAILJS_PUBLIC_KEY, INITIAL_SALAS, DEFAULT_SITE_IMAGE_URL } from '../constants';
-import { mockUsers, mockBookings } from '../utils/mockData';
-import { getItem, setItem } from '../utils/idb';
 import { formatDate } from '../utils/helpers';
+import { auth, db } from '../utils/firebase';
+import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { collection, onSnapshot, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, writeBatch, query, where, getDocs } from 'firebase/firestore';
+
 
 declare global {
     interface Window {
@@ -90,115 +92,84 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
         }
     };
 
-    // --- BLINDADO Data Loading and Seeding ---
+    // --- Firebase Auth Listener ---
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // User is signed in, fetch their profile from Firestore
+                const userDocRef = doc(db, 'users', user.uid);
+                const userDocSnap = await getDoc(userDocRef);
+                if (userDocSnap.exists()) {
+                    setCurrentUser({ id: userDocSnap.id, ...userDocSnap.data() } as User);
+                } else {
+                    // Profile doesn't exist, maybe sign them out or handle error
+                    console.error("User profile not found in Firestore!");
+                    setCurrentUser(null);
+                }
+            } else {
+                // User is signed out
+                setCurrentUser(null);
+            }
+            setIsLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+    // --- Firestore Real-time Listeners ---
     useEffect(() => {
         setIsStandalone(window.matchMedia('(display-mode: standalone)').matches);
         
-        const loadData = async () => {
-            setIsLoading(true);
-            try {
-                const isInitialized = await getItem<boolean>('db_initialized');
-
-                if (!isInitialized) {
-                    console.log("BLINDADO: Primera ejecución. Inicializando base de datos...");
-                    // First time run: Seed the database with default values
-                    await setItem('users', mockUsers);
-                    await setItem('sectors', INITIAL_SECTORS);
-                    await setItem('roles', INITIAL_ROLES);
-                    await setItem('salas', INITIAL_SALAS);
-                    await setItem('bookings', mockBookings);
-                    await setItem('appSettings', settings);
-                    await setItem('db_initialized', true);
-                    await setItem('pwa_installed_once', false);
-
-
-                    // Set initial state from default values
-                    setUsers(mockUsers);
-                    setSectors(INITIAL_SECTORS);
-                    setRoles(INITIAL_ROLES);
-                    setSalas(INITIAL_SALAS);
-                    setBookings(mockBookings);
-                    setPwaInstalledOnce(false);
-                    // Settings are already at default
+        const unsubscribers = [
+            onSnapshot(collection(db, 'users'), (snapshot) => setUsers(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as User)))),
+            onSnapshot(collection(db, 'sectors'), (snapshot) => setSectors(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Sector)))),
+            onSnapshot(collection(db, 'roles'), (snapshot) => setRoles(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Role)))),
+            onSnapshot(collection(db, 'salas'), (snapshot) => setSalas(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Sala)))),
+            onSnapshot(collection(db, 'bookings'), (snapshot) => setBookings(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Booking)))),
+            onSnapshot(doc(db, 'settings', 'appConfig'), (doc) => {
+                if (doc.exists()) {
+                    setSettingsState(s => ({ ...s, ...doc.data() as Partial<AppSettings> }));
                 } else {
-                    // Subsequent runs: Load all data from DB
-                    console.log("BLINDADO: Cargando datos desde IndexedDB.");
-                    const [
-                        loadedUsers,
-                        loadedSectors,
-                        loadedRoles,
-                        loadedSalas,
-                        loadedBookings,
-                        loadedSettings,
-                        loadedCurrentUser,
-                        loadedPwaInstalledOnce
-                    ] = await Promise.all([
-                        getItem<User[]>('users'),
-                        getItem<Sector[]>('sectors'),
-                        getItem<Role[]>('roles'),
-                        getItem<Sala[]>('salas'),
-                        getItem<Booking[]>('bookings'),
-                        getItem<AppSettings>('appSettings'),
-                        getItem<User | null>('currentUser'),
-                        getItem<boolean>('pwa_installed_once')
-                    ]);
-
-                    setUsers(loadedUsers || []);
-                    setSectors(loadedSectors || []);
-                    setRoles(loadedRoles || []);
-                    setSalas(loadedSalas || []);
-                    setBookings(loadedBookings || []);
-                    // Merge settings to ensure new defaults are applied if not present in saved data
-                    setSettingsState(s => ({ ...s, ...(loadedSettings || {}) }));
-                    setCurrentUser(loadedCurrentUser || null);
-                    setPwaInstalledOnce(loadedPwaInstalledOnce || false);
+                    // Optional: Create initial settings document if it doesn't exist
+                    const initialSettings = {
+                        adminSecretCode: INITIAL_ADMIN_SECRET_CODE,
+                        lastBookingDuration: 1,
+                    };
+                    setDoc(doc.ref, initialSettings);
+                    setSettingsState(s => ({ ...s, ...initialSettings }));
                 }
-            } catch (error) {
-                console.error("BLINDADO: Error crítico al cargar datos. Se usarán valores por defecto para esta sesión, pero no se sobrescribirán los datos guardados.", error);
-                // Fallback to defaults for the session, but DO NOT overwrite DB
-                setUsers(mockUsers);
-                setSectors(INITIAL_SECTORS);
-                setRoles(INITIAL_ROLES);
-                setSalas(INITIAL_SALAS);
-                setBookings(mockBookings);
-            } finally {
-                setIsLoading(false);
+            }),
+        ];
+
+        // --- Data Seeding (First time run check) ---
+        const seedInitialData = async () => {
+            const rolesCollection = collection(db, 'roles');
+            const rolesSnapshot = await getDocs(rolesCollection);
+            if (rolesSnapshot.empty) {
+                console.log("No roles found, seeding initial data...");
+                const batch = writeBatch(db);
+                INITIAL_ROLES.forEach(role => {
+                    const docRef = doc(rolesCollection, role.id);
+                    batch.set(docRef, { name: role.name });
+                });
+                INITIAL_SECTORS.forEach(sector => {
+                    const docRef = doc(collection(db, 'sectors'), sector.id);
+                    batch.set(docRef, { name: sector.name });
+                });
+                INITIAL_SALAS.forEach(sala => {
+                    const docRef = doc(collection(db, 'salas'), sala.id);
+                    batch.set(docRef, { name: sala.name, address: sala.address });
+                });
+                await batch.commit();
+                console.log("Initial data seeded successfully.");
             }
         };
 
-        loadData();
+        seedInitialData();
+
+        return () => unsubscribers.forEach(unsub => unsub());
     }, []);
     
-    // --- Wrapped Setters for Persistence ---
-    const persistCurrentUser = async (user: User | null) => {
-        setCurrentUser(user);
-        await setItem('currentUser', user);
-    };
-    const persistUsers = async (newUsers: User[]) => {
-        setUsers(newUsers);
-        await setItem('users', newUsers);
-    };
-    const persistSectors = async (newSectors: Sector[]) => {
-        setSectors(newSectors);
-        await setItem('sectors', newSectors);
-    };
-    const persistRoles = async (newRoles: Role[]) => {
-        setRoles(newRoles);
-        await setItem('roles', newRoles);
-    };
-     const persistSalas = async (newSalas: Sala[]) => {
-        setSalas(newSalas);
-        await setItem('salas', newSalas);
-    };
-    const persistBookings = async (newBookings: Booking[]) => {
-        setBookings(newBookings);
-        await setItem('bookings', newBookings);
-    };
-    const persistSettings = async (newSettings: AppSettings) => {
-        setSettingsState(newSettings);
-        await setItem('appSettings', newSettings);
-    };
-
     // --- PWA Installation Logic ---
     useEffect(() => {
         const handleInstallReady = () => {
@@ -206,7 +177,6 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
             setDeferredPrompt(window.deferredInstallPrompt);
         };
 
-        // Check if the prompt is already available
         if (window.deferredInstallPrompt) {
             handleInstallReady();
         }
@@ -228,27 +198,11 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
         if (outcome === 'accepted') {
             addToast('¡Aplicación instalada exitosamente!', 'success');
             setPwaInstalledOnce(true);
-            await setItem('pwa_installed_once', true);
+            // No need to save this to DB, it's a client-side preference
         }
-        // After being used, the prompt is gone.
         window.deferredInstallPrompt = null;
         setDeferredPrompt(null);
     };
-
-
-    useEffect(() => {
-        if (!isLoading && bookings.length > 0 && salas.length > 0) {
-            const bookingsToUpdate = bookings.filter(b => !b.roomId);
-            if (bookingsToUpdate.length > 0) {
-                console.log(`Migrating ${bookingsToUpdate.length} bookings to have a default room ID.`);
-                const defaultRoomId = salas[0].id;
-                const updatedBookings = bookings.map(b => 
-                    b.roomId ? b : { ...b, roomId: defaultRoomId }
-                );
-                persistBookings(updatedBookings);
-            }
-        }
-    }, [isLoading, bookings, salas]);
 
     const addToast = (message: string, type: 'success' | 'error') => {
         setToasts(prev => [...prev, { id: Date.now(), message, type }]);
@@ -290,11 +244,7 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
                 return '';
             }
             
-            const isEmailJsConfigured =
-                EMAILJS_SERVICE_ID &&
-                EMAILJS_TEMPLATE_ID &&
-                EMAILJS_PUBLIC_KEY;
-
+            const isEmailJsConfigured = EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE_ID && EMAILJS_PUBLIC_KEY;
             if (!isEmailJsConfigured) {
                 console.warn('AVISO: Las notificaciones por email están desactivadas porque las credenciales de EmailJS no están configuradas.');
                 return '';
@@ -310,13 +260,9 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
             };
 
             const usersToNotify = users.filter(u => u.role !== 'Administrador');
-            if (usersToNotify.length === 0) {
-                return 'No hay usuarios para notificar.';
-            }
+            if (usersToNotify.length === 0) return 'No hay usuarios para notificar.';
 
             let successCount = 0;
-            let quotaReached = false;
-            
             for (const targetUser of usersToNotify) {
                 try {
                     await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
@@ -325,61 +271,59 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
                     }, EMAILJS_PUBLIC_KEY);
                     successCount++;
                 } catch (error: any) {
-                    if (error?.status === 426) {
-                        console.warn("EmailJS quota reached. Stopping email notifications.");
-                        quotaReached = true;
-                        break; 
-                    }
-
-                    const errorText = (error instanceof Error) ? error.toString() : JSON.stringify(error);
-                     if (errorText.includes("The recipients address is empty")) {
-                        console.error(`%c[AYUDA EMAILJS] El error "The recipients address is empty" significa que tu plantilla de correo en EmailJS no está configurada para recibir la dirección del destinatario. \nSolución: Ve a tu plantilla en el panel de EmailJS -> Pestaña "Settings" -> y en el campo "To Email", escribe exactamente: {{to_email}}`, 'color: yellow; font-weight: bold; font-size: 14px;');
-                    } else {
-                        console.error(`Failed to send email to ${targetUser.email}:`, errorText);
-                    }
+                    console.error(`Failed to send email to ${targetUser.email}:`, error);
                 }
             }
-
-            if (quotaReached) {
-                return `pero se ha alcanzado la cuota de envío de emails.`;
-            }
-
-            if (successCount === 0) {
-                return `pero falló el envío de todas las notificaciones.`;
-            } else {
-                return `Notificaciones enviadas a ${successCount} de ${usersToNotify.length} usuarios.`;
-            }
+            return `Notificaciones enviadas a ${successCount} de ${usersToNotify.length} usuarios.`;
         } catch (error) {
             console.error("Error catastrófico en sendBookingNotificationEmail:", error);
             return `pero ocurrió un error grave al intentar enviar notificaciones.`;
         }
     }, [users]);
 
+    // --- Auth and CRUD Operations ---
+    
     const login = async (email: string, pass: string): Promise<boolean> => {
-        const user = users.find(u => u.email === email.toLowerCase());
-        if (user && user.passwordHash === `hashed_${pass}`) {
-            await persistCurrentUser(user);
+        try {
+            await signInWithEmailAndPassword(auth, email, pass);
             return true;
-        }
-        return false;
-    };
-
-    const logout = () => {
-        persistCurrentUser(null);
-    };
-
-    const register = async (userData: Omit<User, 'id' | 'passwordHash'>, pass: string): Promise<boolean> => {
-        if (users.some(u => u.email === userData.email.toLowerCase())) {
+        } catch (error) {
+            console.error("Login failed:", error);
             return false;
         }
-        const newUser: User = { ...userData, id: Date.now().toString(), email: userData.email.toLowerCase(), passwordHash: `hashed_${pass}` };
-        await persistUsers([...users, newUser]);
-        return true;
+    };
+
+    const logout = async () => {
+        try {
+            await signOut(auth);
+        } catch (error) {
+            console.error("Logout failed:", error);
+        }
+    };
+
+    const register = async (userData: Omit<User, 'id'>, pass: string): Promise<boolean> => {
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, userData.email, pass);
+            const { user } = userCredential;
+            // Now create the user profile document in Firestore
+            await setDoc(doc(db, 'users', user.uid), {
+                ...userData,
+                email: userData.email.toLowerCase(), // Ensure email is stored in lowercase
+            });
+            return true;
+        } catch (error: any) {
+            console.error("Registration failed:", error);
+            // Firebase returns specific error codes we can check
+            if (error.code === 'auth/email-already-in-use') {
+                addToast('El email ya está registrado.', 'error');
+            }
+            return false;
+        }
     };
 
     const addBooking = async (bookingData: Omit<Booking, 'id'>): Promise<string> => {
-        const newBooking: Booking = { ...bookingData, id: Date.now().toString() };
-        await persistBookings([...bookings, newBooking]);
+        const docRef = await addDoc(collection(db, 'bookings'), bookingData);
+        const newBooking: Booking = { ...bookingData, id: docRef.id };
         const emailStatus = await sendBookingNotificationEmail('creada', newBooking);
         return emailStatus;
     };
@@ -387,7 +331,7 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
     const deleteBooking = async (bookingId: string) => {
         const bookingToDelete = bookings.find(b => b.id === bookingId);
         if (bookingToDelete) {
-            await persistBookings(bookings.filter(b => b.id !== bookingId));
+            await deleteDoc(doc(db, 'bookings', bookingId));
             const emailStatus = await sendBookingNotificationEmail('eliminada', bookingToDelete);
             addToast(`Reserva eliminada. ${emailStatus}`, 'success');
         } else {
@@ -396,99 +340,96 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
     };
 
     const updateBooking = async (updatedBooking: Booking) => {
-        await persistBookings(bookings.map(b => b.id === updatedBooking.id ? updatedBooking : b));
+        const { id, ...bookingData } = updatedBooking;
+        await updateDoc(doc(db, 'bookings', id), bookingData);
         const emailStatus = await sendBookingNotificationEmail('modificada', updatedBooking);
         addToast(`Reserva modificada. ${emailStatus}`, 'success');
     };
 
     const updateUser = async (updatedUser: User) => {
-        const originalUser = users.find(u => u.id === updatedUser.id);
-        if (!originalUser) {
-            throw new Error("Usuario no encontrado para actualizar.");
-        }
-
-        let userToSave = { ...updatedUser };
-        let toastMessage = 'Usuario actualizado.';
-
-        const wasAdmin = originalUser.role === 'Administrador';
-        const isAdmin = updatedUser.role === 'Administrador';
-
-        if (!wasAdmin && isAdmin) { // Promoted to Admin
-            userToSave.passwordHash = `hashed_${settings.adminSecretCode}`;
-            toastMessage = `Usuario promovido a Administrador. Contraseña cambiada al código secreto.`;
-        } else if (wasAdmin && !isAdmin) { // Demoted from Admin
-             // When demoting, ensure the password hash reverts to the user's original hash,
-             // not the admin secret hash they were temporarily using.
-            userToSave.passwordHash = originalUser.passwordHash;
-            toastMessage = `Administrador degradado. La contraseña del usuario ha sido conservada.`;
-        }
-
-        await persistUsers(users.map(u => u.id === userToSave.id ? userToSave : u));
-        addToast(toastMessage, 'success');
+        const { id, ...userData } = updatedUser;
+        await updateDoc(doc(db, 'users', id), userData);
+        addToast('Usuario actualizado.', 'success');
     };
 
     const deleteUser = async (userId: string) => {
-        await persistUsers(users.filter(u => u.id !== userId));
-        await persistBookings(bookings.filter(b => b.userId !== userId));
-        addToast('Usuario y sus reservas eliminados.', 'success');
+        // This is more complex now. We can't delete a Firebase Auth user from the client-side easily.
+        // The standard practice is to use a Firebase Function (backend) to handle this.
+        // For this frontend-only app, we will delete their Firestore data and associated bookings.
+        // The user will still exist in Firebase Auth but won't be able to log in meaningfully.
+        const batch = writeBatch(db);
+        batch.delete(doc(db, 'users', userId));
+
+        // Find and delete user's bookings
+        const bookingsQuery = query(collection(db, 'bookings'), where('userId', '==', userId));
+        const userBookings = await getDocs(bookingsQuery);
+        userBookings.forEach(bookingDoc => {
+            batch.delete(bookingDoc.ref);
+        });
+        
+        await batch.commit();
+        addToast('Usuario y sus reservas eliminados de la base de datos.', 'success');
     };
 
     const addSector = async (sectorName: string) => {
-        await persistSectors([...sectors, { id: Date.now().toString(), name: sectorName }]);
+        await addDoc(collection(db, 'sectors'), { name: sectorName });
         addToast('Sector añadido.', 'success');
     };
 
     const updateSector = async (updatedSector: Sector) => {
-        await persistSectors(sectors.map(s => s.id === updatedSector.id ? updatedSector : s));
+        const { id, ...sectorData } = updatedSector;
+        await updateDoc(doc(db, 'sectors', id), sectorData);
         addToast('Sector actualizado.', 'success');
     };
 
     const deleteSector = async (sectorId: string) => {
-        await persistSectors(sectors.filter(s => s.id !== sectorId));
+        await deleteDoc(doc(db, 'sectors', sectorId));
         addToast('Sector eliminado.', 'success');
     };
 
     const addRole = async (roleName: string) => {
-        await persistRoles([...roles, { id: Date.now().toString(), name: roleName }]);
+        await addDoc(collection(db, 'roles'), { name: roleName });
         addToast('Rol añadido.', 'success');
     };
 
     const updateRole = async (updatedRole: Role) => {
-        await persistRoles(roles.map(r => r.id === updatedRole.id ? updatedRole : r));
+        const { id, ...roleData } = updatedRole;
+        await updateDoc(doc(db, 'roles', id), roleData);
         addToast('Rol actualizado.', 'success');
     };
 
     const deleteRole = async (roleId: string) => {
-        await persistRoles(roles.filter(r => r.id !== roleId));
+        await deleteDoc(doc(db, 'roles', roleId));
         addToast('Rol eliminado.', 'success');
     };
 
     const addSala = async (salaName: string, address: string) => {
-        await persistSalas([...salas, { id: Date.now().toString(), name: salaName, address }]);
+        await addDoc(collection(db, 'salas'), { name: salaName, address });
         addToast('Sala añadida.', 'success');
     };
 
     const updateSala = async (updatedSala: Sala) => {
-        await persistSalas(salas.map(s => s.id === updatedSala.id ? updatedSala : s));
+        const { id, ...salaData } = updatedSala;
+        await updateDoc(doc(db, 'salas', id), salaData);
         addToast('Sala actualizada.', 'success');
     };
 
     const deleteSala = async (salaId: string) => {
-        await persistSalas(salas.filter(s => s.id !== salaId));
-        await persistBookings(bookings.filter(b => b.roomId !== salaId));
+        const batch = writeBatch(db);
+        batch.delete(doc(db, 'salas', salaId));
+        const bookingsQuery = query(collection(db, 'bookings'), where('roomId', '==', salaId));
+        const roomBookings = await getDocs(bookingsQuery);
+        roomBookings.forEach(bookingDoc => {
+            batch.delete(bookingDoc.ref);
+        });
+        await batch.commit();
         addToast('Sala y sus reservas han sido eliminadas.', 'success');
     };
 
     const setSettings = async (newSettings: Partial<AppSettings>) => {
-        const settingsToSave = { ...settings, ...newSettings };
-        
-        // Blindado: Previene que las URLs fijas sean modificadas por el usuario.
-        settingsToSave.logoUrl = DEFAULT_LOGO_URL;
-        settingsToSave.backgroundImageUrl = DEFAULT_BACKGROUND_URL;
-        settingsToSave.homeBackgroundImageUrl = DEFAULT_HOME_BACKGROUND_URL;
-        settingsToSave.siteImageUrl = DEFAULT_SITE_IMAGE_URL;
-
-        await persistSettings(settingsToSave);
+        const settingsRef = doc(db, 'settings', 'appConfig');
+        await updateDoc(settingsRef, newSettings);
+        // URLs are now fixed constants, so no need to prevent user changes here.
     };
 
     const value: AppContextType = {
