@@ -31,7 +31,7 @@ export const getWeekStartDate = (date: Date): Date => {
  * @returns A user-friendly error message string.
  */
 export const getFirebaseErrorMessage = (error: any): string => {
-  let message = 'Ocurrió un error inesperado. Por favor, revisa tu conexión a internet e inténtalo de nuevo.';
+  let message = 'Ocurrió un error inesperado. Por favor, revisa tu conexión e inténtalo de nuevo.';
 
   if (error && error.code) {
     switch (error.code) {
@@ -45,13 +45,13 @@ export const getFirebaseErrorMessage = (error: any): string => {
       case 'auth/user-not-found':
       case 'auth/wrong-password':
       case 'auth/invalid-credential':
-        message = 'Email o contraseña incorrectos.';
+        message = 'Credenciales incorrectas. Por favor, verifica tu email y contraseña.';
         break;
       case 'auth/email-already-in-use':
-        message = 'El email ya está registrado por otro usuario.';
+        message = 'La dirección de email ya está en uso. Si ya tienes una cuenta, por favor inicia sesión.';
         break;
       case 'auth/weak-password':
-        message = 'La contraseña es demasiado débil. Debe tener al menos 6 caracteres.';
+        message = 'La contraseña es muy débil. Debe tener al menos 6 caracteres.';
         break;
       case 'auth/network-request-failed':
         message = 'Error de red. No se pudo completar la solicitud. Verifica tu conexión.';

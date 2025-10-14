@@ -1,26 +1,4 @@
 import { createContext, useState, useEffect, useCallback, FC, ReactNode, useRef } from 'react';
-// FIX: Removed Firebase v9 modular imports for auth as they were causing errors. The app is likely using Firebase v8.
-// import {
-//     createUserWithEmailAndPassword,
-//     onAuthStateChanged,
-//     signInWithEmailAndPassword,
-//     signOut,
-// } from 'firebase/auth';
-// FIX: Removed Firebase v9 modular imports for firestore as they were causing errors. The app is likely using Firebase v8.
-// import {
-//     collection,
-//     doc,
-//     getDoc,
-//     onSnapshot,
-//     setDoc,
-//     addDoc,
-//     updateDoc,
-//     deleteDoc,
-//     writeBatch,
-//     query,
-//     where,
-//     getDocs,
-// } from 'firebase/firestore';
 import { User, Sector, Role, Booking, AppSettings, ToastMessage, AppContextType, ConfirmationState, Sala, ConfirmationOptions } from '../types';
 import { INITIAL_ROLES, INITIAL_SECTORS, DEFAULT_LOGO_URL, DEFAULT_BACKGROUND_URL, INITIAL_ADMIN_SECRET_CODE, DEFAULT_HOME_BACKGROUND_URL, INITIAL_SALAS, DEFAULT_SITE_IMAGE_URL } from '../constants';
 import { getFirebaseErrorMessage } from '../utils/helpers';
@@ -109,14 +87,11 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
     // --- PWA Install Logic ---
     useEffect(() => {
         const handler = (e: CustomEvent) => {
-            // The event detail contains the original `beforeinstallprompt` event.
             setDeferredInstallPrompt(e.detail);
         };
-        // Listen for the custom event dispatched from the global handler in index.tsx
         window.addEventListener('pwa-install-ready', handler as EventListener);
-        // Cleanup the listener when the component unmounts.
         return () => window.removeEventListener('pwa-install-ready', handler as EventListener);
-    }, []); // Empty dependency array ensures this runs only once.
+    }, []);
 
     const triggerPwaInstall = () => {
         if (deferredInstallPrompt) {
@@ -153,3 +128,188 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
     const removeToast = useCallback((id: number) => {
         setToasts(prev => prev.filter(toast => toast.id !== id));
     }, []);
+
+    const showConfirmation = (message: string, onConfirm: () => void, options: ConfirmationOptions = {}) => {
+        onConfirmRef.current = onConfirm;
+        setConfirmation({
+            isOpen: true,
+            message,
+            ...options,
+        });
+    };
+
+    const handleCancel = () => {
+        setConfirmation({ isOpen: false, message: '' });
+        onConfirmRef.current = null;
+    };
+
+    const handleConfirm = () => {
+        if (onConfirmRef.current) {
+            onConfirmRef.current();
+        }
+        handleCancel();
+    };
+
+    // --- Firebase Auth State Change Listener (Robust Handler) ---
+    useEffect(() => {
+        const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
+            if (authUser) {
+                const userDocRef = db.collection('users').doc(authUser.uid);
+                const userDoc = await userDocRef.get();
+
+                if (userDoc.exists) {
+                    const userData = { id: userDoc.id, ...userDoc.data() } as User;
+                    setCurrentUser(userData);
+                } else {
+                    const creationTime = new Date(authUser.metadata.creationTime || 0);
+                    const now = new Date();
+                    const ageInMinutes = (now.getTime() - creationTime.getTime()) / 1000 / 60;
+
+                    if (ageInMinutes < 5) {
+                        try {
+                            await authUser.delete();
+                            addToast('Se limpió un registro anterior incompleto. Por favor, intenta crear tu cuenta de nuevo.', 'error');
+                        } catch (deleteError) {
+                            console.error("Failed to delete orphaned user:", deleteError);
+                            addToast('Ocurrió un error al limpiar una cuenta incompleta.', 'error');
+                            await auth.signOut();
+                        }
+                    } else {
+                        await auth.signOut();
+                    }
+                    setCurrentUser(null);
+                }
+            } else {
+                setCurrentUser(null);
+            }
+            if (isLoading) setIsLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, [addToast, isLoading]);
+
+    // --- Firestore Listeners for Real-time Data ---
+    useEffect(() => {
+        const unsubUsers = db.collection('users').onSnapshot(snapshot => setUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User))), (err) => { console.error(err); addToast('Error al cargar usuarios.', 'error'); });
+        const unsubSectors = db.collection('sectors').onSnapshot(snapshot => setSectors(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Sector))), (err) => { console.error(err); addToast('Error al cargar sectores.', 'error'); });
+        const unsubRoles = db.collection('roles').onSnapshot(snapshot => setRoles(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Role))), (err) => { console.error(err); addToast('Error al cargar roles.', 'error'); });
+        const unsubSalas = db.collection('salas').onSnapshot(snapshot => setSalas(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Sala))), (err) => { console.error(err); addToast('Error al cargar salas.', 'error'); });
+        const unsubBookings = db.collection('bookings').onSnapshot(snapshot => setBookings(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking))), (err) => { console.error(err); addToast('Error al cargar reservas.', 'error'); });
+        const unsubSettings = db.collection('settings').doc('appConfig').onSnapshot(doc => { if (doc.exists) setSettingsState(prev => ({ ...prev, ...doc.data() })); }, (err) => { console.error(err); addToast('Error al cargar la configuración.', 'error'); });
+
+        return () => { unsubUsers(); unsubSectors(); unsubRoles(); unsubSalas(); unsubBookings(); unsubSettings(); };
+    }, [addToast]);
+
+    // --- Auth Functions ---
+    const login = async (email: string, pass: string) => {
+        try {
+            await auth.signInWithEmailAndPassword(email, pass);
+        } catch (error) {
+            const message = getFirebaseErrorMessage(error);
+            addToast(message, 'error');
+            throw error;
+        }
+    };
+    
+    const logout = async () => {
+        try {
+            await auth.signOut();
+            setCurrentUser(null);
+        } catch (error) {
+             const message = getFirebaseErrorMessage(error);
+             addToast(message, 'error');
+        }
+    };
+
+    const register = async (user: Omit<User, 'id'>, pass: string) => {
+        let createdAuthUser = null;
+        try {
+            const userCredential = await auth.createUserWithEmailAndPassword(user.email, pass);
+            createdAuthUser = userCredential.user;
+            if (!createdAuthUser) throw new Error("User creation failed in authentication.");
+
+            const userDocumentData = {
+                firstName: user.firstName, lastName: user.lastName, email: user.email.toLowerCase(), phone: user.phone, sector: user.sector, role: user.role,
+            };
+            
+            await db.collection('users').doc(createdAuthUser.uid).set(userDocumentData);
+            await auth.signOut();
+        } catch (error) {
+            if (createdAuthUser) {
+                try { await createdAuthUser.delete(); } catch (deleteError) { console.error("CRITICAL: Failed to clean up user.", deleteError); }
+            }
+            const message = getFirebaseErrorMessage(error);
+            addToast(message, 'error');
+            throw error;
+        }
+    };
+
+    // --- CRUD Functions ---
+    const addBooking = async (booking: Omit<Booking, 'id'>) => {
+        try { await db.collection('bookings').add(booking); addToast('Reserva creada con éxito.', 'success'); } catch (error) { addToast(getFirebaseErrorMessage(error), 'error'); throw error; }
+    };
+    const deleteBooking = async (bookingId: string) => {
+        try { await db.collection('bookings').doc(bookingId).delete(); addToast('Reserva cancelada con éxito.', 'success'); } catch (error) { addToast(getFirebaseErrorMessage(error), 'error'); throw error; }
+    };
+    const updateBooking = async (booking: Booking) => {
+        try { const { id, ...data } = booking; await db.collection('bookings').doc(id).update(data); addToast('Reserva actualizada.', 'success'); } catch (error) { addToast(getFirebaseErrorMessage(error), 'error'); throw error; }
+    };
+    const updateUser = async (user: User) => {
+        try { const { id, ...data } = user; await db.collection('users').doc(id).update(data); addToast('Usuario actualizado.', 'success'); } catch (error) { addToast(getFirebaseErrorMessage(error), 'error'); throw error; }
+    };
+    const deleteUser = async (userId: string) => {
+        try {
+            const batch = db.batch();
+            batch.delete(db.collection('users').doc(userId));
+            const bookingsSnapshot = await db.collection('bookings').where('userId', '==', userId).get();
+            bookingsSnapshot.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+            addToast('Usuario y sus reservas eliminados.', 'success');
+        } catch (error) { addToast(getFirebaseErrorMessage(error), 'error'); throw error; }
+    };
+    const addSector = async (name: string) => {
+        try { await db.collection('sectors').add({ name }); addToast('Sector agregado.', 'success'); } catch (error) { addToast(getFirebaseErrorMessage(error), 'error'); throw error; }
+    };
+    const updateSector = async (sector: Sector) => {
+        try { await db.collection('sectors').doc(sector.id).update({ name: sector.name }); addToast('Sector actualizado.', 'success'); } catch (error) { addToast(getFirebaseErrorMessage(error), 'error'); throw error; }
+    };
+    const deleteSector = async (id: string) => {
+        try { await db.collection('sectors').doc(id).delete(); addToast('Sector eliminado.', 'success'); } catch (error) { addToast(getFirebaseErrorMessage(error), 'error'); throw error; }
+    };
+    const addRole = async (name: string) => {
+        try { await db.collection('roles').add({ name }); addToast('Rol agregado.', 'success'); } catch (error) { addToast(getFirebaseErrorMessage(error), 'error'); throw error; }
+    };
+    const updateRole = async (role: Role) => {
+        try { await db.collection('roles').doc(role.id).update({ name: role.name }); addToast('Rol actualizado.', 'success'); } catch (error) { addToast(getFirebaseErrorMessage(error), 'error'); throw error; }
+    };
+    const deleteRole = async (id: string) => {
+        try { await db.collection('roles').doc(id).delete(); addToast('Rol eliminado.', 'success'); } catch (error) { addToast(getFirebaseErrorMessage(error), 'error'); throw error; }
+    };
+    const addSala = async (name: string, address: string) => {
+        try { await db.collection('salas').add({ name, address }); addToast('Sala agregada.', 'success'); } catch (error) { addToast(getFirebaseErrorMessage(error), 'error'); throw error; }
+    };
+    const updateSala = async (sala: Sala) => {
+        try { const { id, ...data } = sala; await db.collection('salas').doc(id).update(data); addToast('Sala actualizada.', 'success'); } catch (error) { addToast(getFirebaseErrorMessage(error), 'error'); throw error; }
+    };
+    const deleteSala = async (salaId: string) => {
+        try {
+            const batch = db.batch();
+            batch.delete(db.collection('salas').doc(salaId));
+            const bookingsSnapshot = await db.collection('bookings').where('roomId', '==', salaId).get();
+            bookingsSnapshot.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+            addToast('Sala y sus reservas eliminadas.', 'success');
+        } catch (error) { addToast(getFirebaseErrorMessage(error), 'error'); throw error; }
+    };
+    const setSettings = async (newSettings: Partial<AppSettings>) => {
+        try { await db.collection('settings').doc('appConfig').set(newSettings, { merge: true }); addToast('Configuración guardada.', 'success'); } catch (error) { addToast(getFirebaseErrorMessage(error), 'error'); throw error; }
+    };
+
+    const value = {
+        currentUser, users, sectors, roles, salas, bookings, toasts, confirmation, isLoading, isPwaInstallable, isStandalone, pwaInstalledOnce, isUpdateAvailable,
+        logoUrl: settings.logoUrl, backgroundImageUrl: settings.backgroundImageUrl, homeBackgroundImageUrl: settings.homeBackgroundImageUrl, siteImageUrl: settings.siteImageUrl, adminSecretCode: settings.adminSecretCode, lastBookingDuration: settings.lastBookingDuration || 1,
+        triggerPwaInstall, login, logout, register, addBooking, deleteBooking, updateBooking, updateUser, deleteUser, addSector, updateSector, deleteSector, addRole, updateRole, deleteRole, addSala, updateSala, deleteSala, setSettings, addToast, removeToast, showConfirmation, handleConfirm, handleCancel, applyUpdate,
+    };
+    
+    return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+};
