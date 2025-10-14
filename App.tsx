@@ -9,6 +9,7 @@ import { CSSTransition, TransitionGroup } from 'react-transition-group';
 import { ToastMessage } from './types';
 import HomePage from './pages/HomePage';
 import LogoutPage from './pages/LogoutPage';
+import InstallPWAButton from './components/common/InstallPWAButton';
 
 const Toast: FC<{ toast: ToastMessage }> = ({ toast }) => {
     const { removeToast } = useAppContext();
@@ -224,6 +225,7 @@ const AppContent: FC = () => {
             </Routes>
             <ToastContainer />
             <ConfirmationModal />
+            <InstallPWAButton />
         </div>
     );
 };

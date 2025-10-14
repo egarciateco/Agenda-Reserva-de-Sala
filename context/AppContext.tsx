@@ -85,7 +85,6 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
     const onConfirmRef = useRef<(() => void) | null>(null);
     const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
     const [waitingWorker, setWaitingWorker] = useState<ServiceWorkerRegistration | null>(null);
-    const isRegistering = useRef(false);
 
     // --- PWA Installation State ---
     const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
@@ -182,49 +181,33 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
     };
 
     useEffect(() => {
-        const pollForUserDocument = async (uid: string, retries = 5, delay = 500): Promise<User | null> => {
-            for (let i = 0; i < retries; i++) {
-                const userDoc = await db.collection('users').doc(uid).get();
-                if (userDoc.exists) {
-                    return { id: userDoc.id, ...userDoc.data() } as User;
-                }
-                await new Promise(resolve => setTimeout(resolve, delay));
-            }
-            return null;
-        };
-    
         const unsubscribe = auth.onAuthStateChanged(async (userAuth) => {
-            setIsLoading(true); // Start loading on any auth state change
+            setIsLoading(true);
             if (userAuth) {
+                // When auth state changes, fetch the user document.
                 const userDoc = await db.collection('users').doc(userAuth.uid).get();
-    
+
                 if (userDoc.exists) {
+                    // If the document exists, the user is valid. Set the current user.
                     setCurrentUser({ id: userDoc.id, ...userDoc.data() } as User);
-                    isRegistering.current = false; // A doc exists, so registration is complete.
-                } else if (isRegistering.current) {
-                    // If we are in a registration flow, poll for the document.
-                    console.log("Registration in progress, polling for user document...");
-                    const userFromPoll = await pollForUserDocument(userAuth.uid);
-                    if (userFromPoll) {
-                        setCurrentUser(userFromPoll);
-                    } else {
-                        console.error("Failed to find user document after registration. Logging out.");
-                        await auth.signOut();
-                    }
-                    isRegistering.current = false; // Reset flag after polling attempt.
                 } else {
-                    // User is authenticated, but no document exists, and not a registration flow.
-                    console.warn("User document not found for an existing user session. Logging out.");
+                    // If the document does NOT exist, this is an inconsistent state.
+                    // This can happen after a failed registration. Log the user out
+                    // to force them to re-register or log in with a valid account.
+                    // This is much safer than trying to guess if it's an orphan account.
+                    console.warn(`User authenticated (uid: ${userAuth.uid}) but has no Firestore document. Logging out.`);
                     await auth.signOut();
                     setCurrentUser(null);
                 }
             } else {
+                // No user is authenticated.
                 setCurrentUser(null);
             }
             setIsLoading(false);
         });
         return unsubscribe;
     }, []);
+
 
     // --- Data Subscriptions ---
     useEffect(() => {
@@ -280,7 +263,6 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
     // FIX: Use Firebase v8 namespaced API for signing out.
     const logout = () => auth.signOut();
     const register = async (user: Omit<User, 'id'>, pass: string) => {
-        isRegistering.current = true;
         try {
             const { user: userAuth } = await auth.createUserWithEmailAndPassword(user.email, pass);
             if (userAuth) {
@@ -294,6 +276,7 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
                         role: user.role,
                     };
                     await db.collection('users').doc(userAuth.uid).set(userDocumentData);
+                    // After successfully creating the doc, sign out to force manual login.
                     await auth.signOut();
                 } catch (firestoreError) {
                     console.error("Firestore user creation failed after auth. Deleting auth user to allow re-register.", firestoreError);
@@ -311,8 +294,6 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
             }
         } catch (err) {
             handleAuthError(err, 'register');
-        } finally {
-            isRegistering.current = false;
         }
     };
 
