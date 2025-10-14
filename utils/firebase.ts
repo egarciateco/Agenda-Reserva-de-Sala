@@ -1,5 +1,3 @@
-// FIX: The firebase compat scripts are UMD modules that attach `firebase` to the global scope.
-// Import them for their side-effects only.
 import "firebase/compat/app";
 import "firebase/compat/auth";
 import "firebase/compat/firestore";
@@ -14,16 +12,18 @@ const firebaseConfig = {
   appId: "1:56158496123:web:927b0044e50e13771609de",
 };
 
-// FIX: Access the firebase object from the window, where the UMD script places it.
-// Need to assert the type to avoid TypeScript errors.
-const firebaseApp = (window as any).firebase;
+// Access the firebase instance from the window object, which is populated by the UMD scripts.
+const firebase = (window as any).firebase;
 
-// Initialize Firebase
-const app = firebaseApp.initializeApp(firebaseConfig);
+// Initialize Firebase only if it hasn't been initialized yet.
+// This is a safeguard against re-initialization, e.g., in hot-reloading environments.
+if (firebase && !firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
 
 // Initialize and export services
-export const auth = firebaseApp.auth();
-export const db = firebaseApp.firestore();
+export const auth = firebase.auth();
+export const db = firebase.firestore();
 
 // Enable offline persistence for a robust PWA experience.
 db.enablePersistence()

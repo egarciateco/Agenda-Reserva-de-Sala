@@ -1,5 +1,5 @@
 import { useState, FC, ChangeEvent, FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../hooks/useAppContext';
 
 const PasswordInput: FC<{name: string, value: string, placeholder: string, onChange: (e: ChangeEvent<HTMLInputElement>) => void, required?: boolean}> = 
@@ -35,6 +35,7 @@ const PasswordInput: FC<{name: string, value: string, placeholder: string, onCha
 
 const RegisterPage: FC = () => {
     const { register, sectors, roles, logoUrl, adminSecretCode, addToast } = useAppContext();
+    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
@@ -104,8 +105,8 @@ const RegisterPage: FC = () => {
         
         try {
             await register(userData, passwordForRegistration);
-            addToast('¡Cuenta creada exitosamente! Redirigiendo...', 'success');
-            // Navigation is handled by PublicRoute in App.tsx
+            addToast('¡Cuenta creada exitosamente! Ya puedes iniciar sesión.', 'success');
+            navigate('/login');
         } catch (err) {
             // The specific error (e.g., email in use) is shown by the context.
         } finally {

@@ -296,15 +296,9 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
                 // Create the user document in Firestore.
                 await db.collection('users').doc(userAuth.uid).set(userDocumentData);
     
-                // The onAuthStateChanged listener is racy. It can fire before the document is written,
-                // and the polling fallback seems to be failing.
-                // By setting the user here directly, we bypass the polling logic and ensure
-                // the user is logged in immediately on the client-side.
-                // The listener will still run but will find the document and re-confirm the state.
-                setCurrentUser({
-                    id: userAuth.uid,
-                    ...userDocumentData
-                });
+                // After successful registration and document creation, sign the user out
+                // as per the requirement to return to the login screen instead of auto-logging in.
+                await auth.signOut();
             }
         } catch (err) {
             // Let handleAuthError show the toast and re-throw
