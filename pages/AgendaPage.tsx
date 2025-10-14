@@ -170,9 +170,9 @@ const AgendaPage: FC = () => {
                         <select
                             value={selectedSalaId}
                             onChange={(e) => setSelectedSalaId(e.target.value)}
-                            className="bg-gray-700 border border-gray-600 text-white rounded-md py-2 px-3 focus:outline-none"
+                            className="bg-cyan-900/70 border border-cyan-700 text-white rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                         >
-                            {salas.map(sala => <option key={sala.id} value={sala.id}>{sala.name}</option>)}
+                            {salas.map(sala => <option key={sala.id} value={sala.id} className="bg-gray-800 text-white">{sala.name}</option>)}
                         </select>
                     </div>
                     <div className="flex items-center gap-2">

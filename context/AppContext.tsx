@@ -280,31 +280,38 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
     // FIX: Use Firebase v8 namespaced API for signing out.
     const logout = () => auth.signOut();
     const register = async (user: Omit<User, 'id'>, pass: string) => {
-        isRegistering.current = true; // Signal that a registration process has started.
+        isRegistering.current = true;
         try {
             const { user: userAuth } = await auth.createUserWithEmailAndPassword(user.email, pass);
             if (userAuth) {
-                // Create a clean user object to ensure no unexpected properties are sent.
-                const userDocumentData = {
-                    firstName: user.firstName,
-                    lastName: user.lastName,
-                    email: user.email,
-                    phone: user.phone,
-                    sector: user.sector,
-                    role: user.role,
-                };
-                // Create the user document in Firestore.
-                await db.collection('users').doc(userAuth.uid).set(userDocumentData);
-    
-                // After successful registration and document creation, sign the user out
-                // as per the requirement to return to the login screen instead of auto-logging in.
-                await auth.signOut();
+                try {
+                    const userDocumentData = {
+                        firstName: user.firstName,
+                        lastName: user.lastName,
+                        email: user.email,
+                        phone: user.phone,
+                        sector: user.sector,
+                        role: user.role,
+                    };
+                    await db.collection('users').doc(userAuth.uid).set(userDocumentData);
+                    await auth.signOut();
+                } catch (firestoreError) {
+                    console.error("Firestore user creation failed after auth. Deleting auth user to allow re-register.", firestoreError);
+                    // The user is currently logged in, so they can delete their own account.
+                    await userAuth.delete().catch(deleteError => {
+                        console.error("CRITICAL: Failed to delete orphaned auth user.", deleteError);
+                        // This is a bad state. Inform the user to contact support.
+                        const criticalError = new Error("No se pudo completar el registro. Por favor, contacte a un administrador.");
+                        (criticalError as any).code = 'registration-cleanup-failed'; // Custom code
+                        throw criticalError;
+                    });
+                    // Re-throw the original firestore error so the user sees a relevant message.
+                    throw firestoreError;
+                }
             }
         } catch (err) {
-            // Let handleAuthError show the toast and re-throw
             handleAuthError(err, 'register');
         } finally {
-            // Ensure the registration flag is reset whether it succeeds or fails.
             isRegistering.current = false;
         }
     };
