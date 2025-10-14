@@ -3,7 +3,7 @@ import { useAppContext } from '../../hooks/useAppContext';
 import { Sector } from '../../types';
 
 const SectorsManager: FC = () => {
-    const { sectors, addSector, updateSector, deleteSector, addToast, showConfirmation } = useAppContext();
+    const { sectors, addSector, updateSector, deleteSector, showConfirmation } = useAppContext();
     const [newSectorName, setNewSectorName] = useState('');
     const [editingSector, setEditingSector] = useState<Sector | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -17,8 +17,7 @@ const SectorsManager: FC = () => {
                 await addSector(newSectorName.trim());
                 setNewSectorName('');
             } catch (error) {
-                console.error("Failed to add sector", error);
-                addToast('Error al añadir el sector.', 'error');
+                // Error toast is shown by context
             } finally {
                 setIsAdding(false);
             }
@@ -32,8 +31,7 @@ const SectorsManager: FC = () => {
                 await updateSector(editingSector);
                 setEditingSector(null);
             } catch (error) {
-                console.error("Failed to update sector", error);
-                addToast('Error al actualizar el sector.', 'error');
+                // Error toast is shown by context
             } finally {
                 setIsSaving(null);
             }
@@ -46,8 +44,7 @@ const SectorsManager: FC = () => {
             try {
                 await deleteSector(sector.id);
             } catch (error) {
-                console.error("Failed to delete sector", error);
-                addToast('Error al eliminar el sector.', 'error');
+                // Error toast is shown by context
             } finally {
                 setDeletingId(null);
             }

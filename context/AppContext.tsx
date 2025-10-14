@@ -1,11 +1,30 @@
-import { createContext, useState, useEffect, useCallback, FC, ReactNode } from 'react';
+import { createContext, useState, useEffect, useCallback, FC, ReactNode, useRef } from 'react';
+// FIX: Removed Firebase v9 modular imports for auth as they were causing errors. The app is likely using Firebase v8.
+// import {
+//     createUserWithEmailAndPassword,
+//     onAuthStateChanged,
+//     signInWithEmailAndPassword,
+//     signOut,
+// } from 'firebase/auth';
+// FIX: Removed Firebase v9 modular imports for firestore as they were causing errors. The app is likely using Firebase v8.
+// import {
+//     collection,
+//     doc,
+//     getDoc,
+//     onSnapshot,
+//     setDoc,
+//     addDoc,
+//     updateDoc,
+//     deleteDoc,
+//     writeBatch,
+//     query,
+//     where,
+//     getDocs,
+// } from 'firebase/firestore';
 import { User, Sector, Role, Booking, AppSettings, ToastMessage, AppContextType, ConfirmationState, Sala, ConfirmationOptions } from '../types';
-import { INITIAL_ROLES, INITIAL_SECTORS, DEFAULT_LOGO_URL, DEFAULT_BACKGROUND_URL, INITIAL_ADMIN_SECRET_CODE, DEFAULT_HOME_BACKGROUND_URL, EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, EMAILJS_PUBLIC_KEY, INITIAL_SALAS, DEFAULT_SITE_IMAGE_URL } from '../constants';
-import { formatDate } from '../utils/helpers';
+import { INITIAL_ROLES, INITIAL_SECTORS, DEFAULT_LOGO_URL, DEFAULT_BACKGROUND_URL, INITIAL_ADMIN_SECRET_CODE, DEFAULT_HOME_BACKGROUND_URL, INITIAL_SALAS, DEFAULT_SITE_IMAGE_URL } from '../constants';
+import { getFirebaseErrorMessage } from '../utils/helpers';
 import { auth, db } from '../utils/firebase';
-import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { collection, onSnapshot, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, writeBatch, query, where, getDocs } from 'firebase/firestore';
-
 
 declare global {
     interface Window {
@@ -14,7 +33,7 @@ declare global {
     }
 }
 
-const AppContext = createContext<AppContextType | undefined>(undefined);
+export const AppContext = createContext<AppContextType | undefined>(undefined);
 
 // --- Audio Context for Bell Sound ---
 let audioContext: AudioContext | null = null;
@@ -61,403 +80,394 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
     const [confirmation, setConfirmation] = useState<ConfirmationState>({
         isOpen: false,
         message: '',
-        onConfirm: () => {},
-        onCancel: () => {},
     });
-    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-    const [isStandalone, setIsStandalone] = useState(false);
-    const [pwaInstalledOnce, setPwaInstalledOnce] = useState(false);
-    const [updateRegistration, setUpdateRegistration] = useState<ServiceWorkerRegistration | null>(null);
+    
+    const onConfirmRef = useRef<(() => void) | null>(null);
+    const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
+    const [waitingWorker, setWaitingWorker] = useState<ServiceWorkerRegistration | null>(null);
+    const isRegistering = useRef(false);
 
+    // --- PWA Installation State ---
+    const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    const isPwaInstallable = !!deferredInstallPrompt && !isStandalone;
+    const [pwaInstalledOnce, setPwaInstalledOnce] = useState(() => {
+        try {
+            return localStorage.getItem('pwaInstalled') === 'true';
+        } catch {
+            return false;
+        }
+    });
 
-    useEffect(() => {
-        const handleSwUpdate = (e: CustomEvent<ServiceWorkerRegistration>) => {
-            console.log("App received 'sw-update' event.");
-            setUpdateRegistration(e.detail);
-        };
-        window.addEventListener('sw-update', handleSwUpdate as EventListener);
-        return () => window.removeEventListener('sw-update', handleSwUpdate as EventListener);
+    const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, message, type }]);
+        if (type === 'success') {
+            playNotificationSound();
+        }
     }, []);
 
-    const applyUpdate = () => {
-        if (updateRegistration && updateRegistration.waiting) {
-            updateRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
-            
-            let refreshing = false;
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-                if (refreshing) return;
-                window.location.reload();
-                refreshing = true;
+    // --- PWA Install Logic ---
+    useEffect(() => {
+        const handler = (e: CustomEvent) => {
+            // The event detail contains the original `beforeinstallprompt` event.
+            setDeferredInstallPrompt(e.detail);
+        };
+        // Listen for the custom event dispatched from the global handler in index.tsx
+        window.addEventListener('pwa-install-ready', handler as EventListener);
+        // Cleanup the listener when the component unmounts.
+        return () => window.removeEventListener('pwa-install-ready', handler as EventListener);
+    }, []); // Empty dependency array ensures this runs only once.
+
+    const triggerPwaInstall = () => {
+        if (deferredInstallPrompt) {
+            deferredInstallPrompt.prompt();
+            deferredInstallPrompt.userChoice.then((choiceResult: { outcome: string }) => {
+                if (choiceResult.outcome === 'accepted') {
+                    addToast('¡Aplicación instalada con éxito!', 'success');
+                    localStorage.setItem('pwaInstalled', 'true');
+                    setPwaInstalledOnce(true);
+                }
+                setDeferredInstallPrompt(null);
             });
         }
     };
-
-    // --- Firebase Auth Listener ---
+    
+    // --- PWA Update Logic ---
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                // User is signed in, fetch their profile from Firestore
-                const userDocRef = doc(db, 'users', user.uid);
-                const userDocSnap = await getDoc(userDocRef);
-                if (userDocSnap.exists()) {
-                    setCurrentUser({ id: userDocSnap.id, ...userDocSnap.data() } as User);
+        const handleUpdate = (event: Event) => {
+            const registration = (event as CustomEvent).detail;
+            setIsUpdateAvailable(true);
+            setWaitingWorker(registration);
+        };
+        window.addEventListener('sw-update', handleUpdate);
+        return () => window.removeEventListener('sw-update', handleUpdate);
+    }, []);
+
+    const applyUpdate = () => {
+        if (waitingWorker && waitingWorker.waiting) {
+            waitingWorker.waiting.postMessage({ type: 'SKIP_WAITING' });
+            setTimeout(() => window.location.reload(), 1000);
+        }
+    };
+    
+    const removeToast = useCallback((id: number) => {
+        setToasts(prev => prev.filter(toast => toast.id !== id));
+    }, []);
+
+    const showConfirmation = (message: string, onConfirm: () => void, options: ConfirmationOptions = {}) => {
+        onConfirmRef.current = onConfirm;
+        setConfirmation({ isOpen: true, message, ...options });
+    };
+
+    const handleConfirm = () => {
+        onConfirmRef.current?.();
+        handleCancel();
+    };
+
+    const handleCancel = () => {
+        setConfirmation({ isOpen: false, message: '' });
+        onConfirmRef.current = null;
+    };
+
+    const handleFirestoreError = (err: any, context: string) => {
+        console.error(`Firestore Error (${context}):`, String(err));
+        addToast(getFirebaseErrorMessage(err), 'error');
+    };
+    
+    const handleAuthError = (err: any, context: string) => {
+        console.error(`Auth Error (${context}):`, String(err));
+        addToast(getFirebaseErrorMessage(err), 'error');
+        throw err;
+    };
+
+    useEffect(() => {
+        const pollForUserDocument = async (uid: string, retries = 5, delay = 500): Promise<User | null> => {
+            for (let i = 0; i < retries; i++) {
+                const userDoc = await db.collection('users').doc(uid).get();
+                if (userDoc.exists) {
+                    return { id: userDoc.id, ...userDoc.data() } as User;
+                }
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+            return null;
+        };
+    
+        const unsubscribe = auth.onAuthStateChanged(async (userAuth) => {
+            setIsLoading(true); // Start loading on any auth state change
+            if (userAuth) {
+                const userDoc = await db.collection('users').doc(userAuth.uid).get();
+    
+                if (userDoc.exists) {
+                    setCurrentUser({ id: userDoc.id, ...userDoc.data() } as User);
+                    isRegistering.current = false; // A doc exists, so registration is complete.
+                } else if (isRegistering.current) {
+                    // If we are in a registration flow, poll for the document.
+                    console.log("Registration in progress, polling for user document...");
+                    const userFromPoll = await pollForUserDocument(userAuth.uid);
+                    if (userFromPoll) {
+                        setCurrentUser(userFromPoll);
+                    } else {
+                        console.error("Failed to find user document after registration. Logging out.");
+                        await auth.signOut();
+                    }
+                    isRegistering.current = false; // Reset flag after polling attempt.
                 } else {
-                    // Profile doesn't exist, maybe sign them out or handle error
-                    console.error("User profile not found in Firestore!");
+                    // User is authenticated, but no document exists, and not a registration flow.
+                    console.warn("User document not found for an existing user session. Logging out.");
+                    await auth.signOut();
                     setCurrentUser(null);
                 }
             } else {
-                // User is signed out
                 setCurrentUser(null);
             }
             setIsLoading(false);
         });
-
-        return () => unsubscribe();
+        return unsubscribe;
     }, []);
 
-    // --- Firestore Real-time Listeners ---
+    // --- Data Subscriptions ---
     useEffect(() => {
-        setIsStandalone(window.matchMedia('(display-mode: standalone)').matches);
-        
-        const unsubscribers = [
-            onSnapshot(collection(db, 'users'), (snapshot) => setUsers(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as User)))),
-            onSnapshot(collection(db, 'sectors'), (snapshot) => setSectors(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Sector)))),
-            onSnapshot(collection(db, 'roles'), (snapshot) => setRoles(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Role)))),
-            onSnapshot(collection(db, 'salas'), (snapshot) => setSalas(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Sala)))),
-            onSnapshot(collection(db, 'bookings'), (snapshot) => setBookings(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Booking)))),
-            onSnapshot(doc(db, 'settings', 'appConfig'), (doc) => {
-                if (doc.exists()) {
-                    setSettingsState(s => ({ ...s, ...doc.data() as Partial<AppSettings> }));
+        const unsub = (collectionName: string, setter: Function, initialData?: any[]) => {
+            // FIX: Use Firebase v8 namespaced API to create a collection query.
+            const q = db.collection(collectionName);
+            // FIX: Use Firebase v8 namespaced API to listen for snapshot changes.
+            return q.onSnapshot(async (snapshot) => {
+                if (snapshot.empty && initialData) {
+                    // FIX: Use Firebase v8 namespaced API for write batch.
+                    const batch = db.batch();
+                    initialData.forEach(item => {
+                        // FIX: Use Firebase v8 namespaced API to get a document reference.
+                        const docRef = db.collection(collectionName).doc(item.id);
+                        batch.set(docRef, item);
+                    });
+                    await batch.commit();
                 } else {
-                    // Optional: Create initial settings document if it doesn't exist
-                    const initialSettings = {
-                        adminSecretCode: INITIAL_ADMIN_SECRET_CODE,
-                        lastBookingDuration: 1,
-                    };
-                    setDoc(doc.ref, initialSettings);
-                    setSettingsState(s => ({ ...s, ...initialSettings }));
+                    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setter(data);
                 }
-            }),
+            }, err => handleFirestoreError(err, `fetch ${collectionName}`));
+        };
+
+        const unsubs = [
+            unsub('users', setUsers),
+            unsub('sectors', setSectors, INITIAL_SECTORS),
+            unsub('roles', setRoles, INITIAL_ROLES),
+            unsub('salas', setSalas, INITIAL_SALAS),
+            unsub('bookings', setBookings),
         ];
 
-        // --- Data Seeding (First time run check) ---
-        const seedInitialData = async () => {
-            const rolesCollection = collection(db, 'roles');
-            const rolesSnapshot = await getDocs(rolesCollection);
-            if (rolesSnapshot.empty) {
-                console.log("No roles found, seeding initial data...");
-                const batch = writeBatch(db);
-                INITIAL_ROLES.forEach(role => {
-                    const docRef = doc(rolesCollection, role.id);
-                    batch.set(docRef, { name: role.name });
-                });
-                INITIAL_SECTORS.forEach(sector => {
-                    const docRef = doc(collection(db, 'sectors'), sector.id);
-                    batch.set(docRef, { name: sector.name });
-                });
-                INITIAL_SALAS.forEach(sala => {
-                    const docRef = doc(collection(db, 'salas'), sala.id);
-                    batch.set(docRef, { name: sala.name, address: sala.address });
-                });
-                await batch.commit();
-                console.log("Initial data seeded successfully.");
+        // FIX: Use Firebase v8 namespaced API to listen for document snapshot changes.
+        const settingsUnsub = db.collection('config').doc('settings').onSnapshot(doc => {
+            if (doc.exists) {
+                setSettingsState(prev => ({ ...prev, ...doc.data() }));
             }
-        };
-
-        seedInitialData();
-
-        return () => unsubscribers.forEach(unsub => unsub());
-    }, []);
-    
-    // --- PWA Installation Logic ---
-    useEffect(() => {
-        const handleInstallReady = () => {
-            console.log('`pwa-install-ready` event received by context.');
-            setDeferredPrompt(window.deferredInstallPrompt);
-        };
-
-        if (window.deferredInstallPrompt) {
-            handleInstallReady();
-        }
-
-        window.addEventListener('pwa-install-ready', handleInstallReady);
-        return () => {
-            window.removeEventListener('pwa-install-ready', handleInstallReady);
-        };
-    }, []);
-
-    const triggerPwaInstall = async () => {
-        if (!deferredPrompt) {
-            console.log("Install prompt not available.");
-            addToast('La aplicación no se puede instalar en este momento.', 'error');
-            return;
-        }
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-            addToast('¡Aplicación instalada exitosamente!', 'success');
-            setPwaInstalledOnce(true);
-            // No need to save this to DB, it's a client-side preference
-        }
-        window.deferredInstallPrompt = null;
-        setDeferredPrompt(null);
-    };
-
-    const addToast = (message: string, type: 'success' | 'error') => {
-        setToasts(prev => [...prev, { id: Date.now(), message, type }]);
-        if(type === 'success') {
-            playNotificationSound();
-        }
-    };
-
-    const removeToast = (id: number) => {
-        setToasts(prev => prev.filter(t => t.id !== id));
-    };
-
-    const hideConfirmation = () => {
-        setConfirmation({ ...confirmation, isOpen: false });
-    };
-
-    const showConfirmation = (message: string, onConfirm: () => void, options?: ConfirmationOptions) => {
-        setConfirmation({
-            isOpen: true,
-            message,
-            onConfirm: () => {
-                onConfirm();
-                hideConfirmation();
-            },
-            onCancel: hideConfirmation,
-            confirmText: options?.confirmText,
-            cancelText: options?.cancelText,
-            confirmButtonClass: options?.confirmButtonClass,
-        });
-    };
-
-    const sendBookingNotificationEmail = useCallback(async (action: 'creada' | 'modificada' | 'eliminada', booking: Booking) => {
-        const user = users.find(u => u.id === booking.userId);
-        if (!user) return "Usuario de la reserva no encontrado.";
-
-        try {
-            if (typeof window.emailjs === 'undefined') {
-                console.error('EmailJS SDK not loaded. Skipping email notifications.');
-                return '';
-            }
-            
-            const isEmailJsConfigured = EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE_ID && EMAILJS_PUBLIC_KEY;
-            if (!isEmailJsConfigured) {
-                console.warn('AVISO: Las notificaciones por email están desactivadas porque las credenciales de EmailJS no están configuradas.');
-                return '';
-            }
-            
-            const bookingDate = new Date(booking.date + 'T00:00:00');
-            const templateParams = {
-                action,
-                user_name: `${user.lastName}, ${user.firstName}`,
-                user_sector: user.sector,
-                booking_day: formatDate(bookingDate),
-                booking_time: `${booking.startTime}:00 - ${booking.startTime + booking.duration}:00`,
-            };
-
-            const usersToNotify = users.filter(u => u.role !== 'Administrador');
-            if (usersToNotify.length === 0) return 'No hay usuarios para notificar.';
-
-            let successCount = 0;
-            for (const targetUser of usersToNotify) {
-                try {
-                    await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-                        ...templateParams,
-                        to_email: targetUser.email,
-                    }, EMAILJS_PUBLIC_KEY);
-                    successCount++;
-                } catch (error: any) {
-                    console.error(`Failed to send email to ${targetUser.email}:`, error);
-                }
-            }
-            return `Notificaciones enviadas a ${successCount} de ${usersToNotify.length} usuarios.`;
-        } catch (error) {
-            console.error("Error catastrófico en sendBookingNotificationEmail:", error);
-            return `pero ocurrió un error grave al intentar enviar notificaciones.`;
-        }
-    }, [users]);
-
-    // --- Auth and CRUD Operations ---
-    
-    const login = async (email: string, pass: string): Promise<boolean> => {
-        try {
-            await signInWithEmailAndPassword(auth, email, pass);
-            return true;
-        } catch (error) {
-            console.error("Login failed:", error);
-            return false;
-        }
-    };
-
-    const logout = async () => {
-        try {
-            await signOut(auth);
-        } catch (error) {
-            console.error("Logout failed:", error);
-        }
-    };
-
-    const register = async (userData: Omit<User, 'id'>, pass: string): Promise<boolean> => {
-        try {
-            const userCredential = await createUserWithEmailAndPassword(auth, userData.email, pass);
-            const { user } = userCredential;
-            // Now create the user profile document in Firestore
-            await setDoc(doc(db, 'users', user.uid), {
-                ...userData,
-                email: userData.email.toLowerCase(), // Ensure email is stored in lowercase
-            });
-            return true;
-        } catch (error: any) {
-            console.error("Registration failed:", error);
-            // Firebase returns specific error codes we can check
-            if (error.code === 'auth/email-already-in-use') {
-                addToast('El email ya está registrado.', 'error');
-            }
-            return false;
-        }
-    };
-
-    const addBooking = async (bookingData: Omit<Booking, 'id'>): Promise<string> => {
-        const docRef = await addDoc(collection(db, 'bookings'), bookingData);
-        const newBooking: Booking = { ...bookingData, id: docRef.id };
-        const emailStatus = await sendBookingNotificationEmail('creada', newBooking);
-        return emailStatus;
-    };
-
-    const deleteBooking = async (bookingId: string) => {
-        const bookingToDelete = bookings.find(b => b.id === bookingId);
-        if (bookingToDelete) {
-            await deleteDoc(doc(db, 'bookings', bookingId));
-            const emailStatus = await sendBookingNotificationEmail('eliminada', bookingToDelete);
-            addToast(`Reserva eliminada. ${emailStatus}`, 'success');
-        } else {
-            throw new Error("Reserva no encontrada.");
-        }
-    };
-
-    const updateBooking = async (updatedBooking: Booking) => {
-        const { id, ...bookingData } = updatedBooking;
-        await updateDoc(doc(db, 'bookings', id), bookingData);
-        const emailStatus = await sendBookingNotificationEmail('modificada', updatedBooking);
-        addToast(`Reserva modificada. ${emailStatus}`, 'success');
-    };
-
-    const updateUser = async (updatedUser: User) => {
-        const { id, ...userData } = updatedUser;
-        await updateDoc(doc(db, 'users', id), userData);
-        addToast('Usuario actualizado.', 'success');
-    };
-
-    const deleteUser = async (userId: string) => {
-        // This is more complex now. We can't delete a Firebase Auth user from the client-side easily.
-        // The standard practice is to use a Firebase Function (backend) to handle this.
-        // For this frontend-only app, we will delete their Firestore data and associated bookings.
-        // The user will still exist in Firebase Auth but won't be able to log in meaningfully.
-        const batch = writeBatch(db);
-        batch.delete(doc(db, 'users', userId));
-
-        // Find and delete user's bookings
-        const bookingsQuery = query(collection(db, 'bookings'), where('userId', '==', userId));
-        const userBookings = await getDocs(bookingsQuery);
-        userBookings.forEach(bookingDoc => {
-            batch.delete(bookingDoc.ref);
-        });
+        }, err => handleFirestoreError(err, 'fetch settings'));
+        unsubs.push(settingsUnsub);
         
-        await batch.commit();
-        addToast('Usuario y sus reservas eliminados de la base de datos.', 'success');
+        return () => unsubs.forEach(u => u());
+    }, []);
+
+    // --- Auth Functions ---
+    const login = async (email: string, pass: string) => {
+        try {
+            // FIX: Use Firebase v8 namespaced API for signing in.
+            await auth.signInWithEmailAndPassword(email, pass);
+        } catch (err) {
+            handleAuthError(err, 'login');
+        }
+    };
+    // FIX: Use Firebase v8 namespaced API for signing out.
+    const logout = () => auth.signOut();
+    const register = async (user: Omit<User, 'id'>, pass: string) => {
+        isRegistering.current = true; // Signal that a registration process has started.
+        try {
+            const { user: userAuth } = await auth.createUserWithEmailAndPassword(user.email, pass);
+            if (userAuth) {
+                // Create a clean user object to ensure no unexpected properties are sent.
+                const userDocumentData = {
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    email: user.email,
+                    phone: user.phone,
+                    sector: user.sector,
+                    role: user.role,
+                };
+                // Create the user document in Firestore.
+                await db.collection('users').doc(userAuth.uid).set(userDocumentData);
+    
+                // The onAuthStateChanged listener is racy. It can fire before the document is written,
+                // and the polling fallback seems to be failing.
+                // By setting the user here directly, we bypass the polling logic and ensure
+                // the user is logged in immediately on the client-side.
+                // The listener will still run but will find the document and re-confirm the state.
+                setCurrentUser({
+                    id: userAuth.uid,
+                    ...userDocumentData
+                });
+            }
+        } catch (err) {
+            // Let handleAuthError show the toast and re-throw
+            handleAuthError(err, 'register');
+        } finally {
+            // Ensure the registration flag is reset whether it succeeds or fails.
+            isRegistering.current = false;
+        }
     };
 
-    const addSector = async (sectorName: string) => {
-        await addDoc(collection(db, 'sectors'), { name: sectorName });
-        addToast('Sector añadido.', 'success');
+    // --- Generic Firestore Functions ---
+    const crud = <T extends {id: string}>(collectionName: string) => ({
+        add: async (data: Omit<T, 'id'>) => {
+            try {
+                // FIX: Use Firebase v8 namespaced API for adding a document.
+                await db.collection(collectionName).add(data);
+            } catch (err) {
+                handleFirestoreError(err, `add ${collectionName}`);
+            }
+        },
+        update: async (item: T) => {
+            try {
+                // FIX: Use Firebase v8 namespaced API for updating a document.
+                await db.collection(collectionName).doc(item.id).update(item as {[x: string]: any});
+            } catch(err) {
+                handleFirestoreError(err, `update ${collectionName}`);
+            }
+        },
+        delete: async (id: string) => {
+            try {
+                // FIX: Use Firebase v8 namespaced API for deleting a document.
+                await db.collection(collectionName).doc(id).delete();
+            } catch(err) {
+                handleFirestoreError(err, `delete ${collectionName}`);
+            }
+        },
+    });
+
+    const bookingsCrud = crud<Booking>('bookings');
+    const usersCrud = crud<User>('users');
+    const sectorsCrud = crud<Sector>('sectors');
+    const rolesCrud = crud<Role>('roles');
+    const salasCrud = crud<Sala>('salas');
+
+    // --- App-specific Functions ---
+    const addBooking = async (booking: Omit<Booking, 'id'>) => {
+        await bookingsCrud.add(booking);
+        addToast('¡Reserva creada exitosamente!', 'success');
+    };
+    const updateBooking = (booking: Booking) => bookingsCrud.update(booking).then(() => addToast('Reserva actualizada.', 'success'));
+    const deleteBooking = (bookingId: string) => bookingsCrud.delete(bookingId).then(() => addToast('Reserva eliminada.', 'success'));
+
+    const updateUser = (user: User) => usersCrud.update(user).then(() => addToast('Usuario actualizado.', 'success'));
+    const deleteUser = async (userId: string) => {
+        try {
+            // FIX: Use Firebase v8 namespaced API for write batch.
+            const batch = db.batch();
+            // FIX: Use Firebase v8 namespaced API for querying documents.
+            const bookingsQuery = db.collection('bookings').where('userId', '==', userId);
+            // FIX: Use Firebase v8 namespaced API for getting query snapshot.
+            const userBookingsSnapshot = await bookingsQuery.get();
+            userBookingsSnapshot.forEach(doc => batch.delete(doc.ref));
+            
+            // FIX: Use Firebase v8 namespaced API to get a document reference.
+            const userRef = db.collection('users').doc(userId);
+            batch.delete(userRef);
+            
+            await batch.commit();
+            addToast('Usuario y sus reservas eliminados.', 'success');
+        } catch (err) {
+            handleFirestoreError(err, 'delete user cascade');
+        }
     };
 
-    const updateSector = async (updatedSector: Sector) => {
-        const { id, ...sectorData } = updatedSector;
-        await updateDoc(doc(db, 'sectors', id), sectorData);
-        addToast('Sector actualizado.', 'success');
-    };
+    const addSector = (name: string) => sectorsCrud.add({ name } as any).then(() => addToast('Sector agregado.', 'success'));
+    const updateSector = (sector: Sector) => sectorsCrud.update(sector).then(() => addToast('Sector actualizado.', 'success'));
+    const deleteSector = (sectorId: string) => sectorsCrud.delete(sectorId).then(() => addToast('Sector eliminado.', 'success'));
 
-    const deleteSector = async (sectorId: string) => {
-        await deleteDoc(doc(db, 'sectors', sectorId));
-        addToast('Sector eliminado.', 'success');
-    };
-
-    const addRole = async (roleName: string) => {
-        await addDoc(collection(db, 'roles'), { name: roleName });
-        addToast('Rol añadido.', 'success');
-    };
-
-    const updateRole = async (updatedRole: Role) => {
-        const { id, ...roleData } = updatedRole;
-        await updateDoc(doc(db, 'roles', id), roleData);
-        addToast('Rol actualizado.', 'success');
-    };
-
-    const deleteRole = async (roleId: string) => {
-        await deleteDoc(doc(db, 'roles', roleId));
-        addToast('Rol eliminado.', 'success');
-    };
-
-    const addSala = async (salaName: string, address: string) => {
-        await addDoc(collection(db, 'salas'), { name: salaName, address });
-        addToast('Sala añadida.', 'success');
-    };
-
-    const updateSala = async (updatedSala: Sala) => {
-        const { id, ...salaData } = updatedSala;
-        await updateDoc(doc(db, 'salas', id), salaData);
-        addToast('Sala actualizada.', 'success');
-    };
-
+    const addRole = (name: string) => rolesCrud.add({ name } as any).then(() => addToast('Rol agregado.', 'success'));
+    const updateRole = (role: Role) => rolesCrud.update(role).then(() => addToast('Rol actualizado.', 'success'));
+    const deleteRole = (roleId: string) => rolesCrud.delete(roleId).then(() => addToast('Rol eliminado.', 'success'));
+    
+    const addSala = (name: string, address: string) => salasCrud.add({ name, address } as any).then(() => addToast('Sala agregada.', 'success'));
+    const updateSala = (sala: Sala) => salasCrud.update(sala).then(() => addToast('Sala actualizada.', 'success'));
     const deleteSala = async (salaId: string) => {
-        const batch = writeBatch(db);
-        batch.delete(doc(db, 'salas', salaId));
-        const bookingsQuery = query(collection(db, 'bookings'), where('roomId', '==', salaId));
-        const roomBookings = await getDocs(bookingsQuery);
-        roomBookings.forEach(bookingDoc => {
-            batch.delete(bookingDoc.ref);
-        });
-        await batch.commit();
-        addToast('Sala y sus reservas han sido eliminadas.', 'success');
+        try {
+            // FIX: Use Firebase v8 namespaced API for write batch.
+            const batch = db.batch();
+            // FIX: Use Firebase v8 namespaced API for querying documents.
+            const bookingsQuery = db.collection('bookings').where('roomId', '==', salaId);
+            // FIX: Use Firebase v8 namespaced API for getting query snapshot.
+            const salaBookingsSnapshot = await bookingsQuery.get();
+            salaBookingsSnapshot.forEach(doc => batch.delete(doc.ref));
+            // FIX: Use Firebase v8 namespaced API to get a document reference.
+            const salaRef = db.collection('salas').doc(salaId);
+            batch.delete(salaRef);
+            await batch.commit();
+            addToast('Sala y sus reservas eliminadas.', 'success');
+        } catch (err) {
+            handleFirestoreError(err, 'delete sala cascade');
+        }
     };
-
+    
     const setSettings = async (newSettings: Partial<AppSettings>) => {
-        const settingsRef = doc(db, 'settings', 'appConfig');
-        await updateDoc(settingsRef, newSettings);
-        // URLs are now fixed constants, so no need to prevent user changes here.
+        try {
+            // FIX: Use Firebase v8 namespaced API for setting a document with merge options.
+            await db.collection('config').doc('settings').set(newSettings, { merge: true });
+            addToast('Configuración guardada.', 'success');
+        } catch (err) {
+            handleFirestoreError(err, 'set settings');
+        }
     };
 
-    const value: AppContextType = {
-        currentUser, users, sectors, roles, salas, bookings,
-        logoUrl: DEFAULT_LOGO_URL,
-        backgroundImageUrl: DEFAULT_BACKGROUND_URL,
-        homeBackgroundImageUrl: DEFAULT_HOME_BACKGROUND_URL,
-        siteImageUrl: DEFAULT_SITE_IMAGE_URL,
+    const contextValue: AppContextType = {
+        currentUser,
+        users,
+        sectors,
+        roles,
+        salas,
+        bookings,
+        logoUrl: settings.logoUrl,
+        backgroundImageUrl: settings.backgroundImageUrl,
+        homeBackgroundImageUrl: settings.homeBackgroundImageUrl,
+        siteImageUrl: settings.siteImageUrl,
         adminSecretCode: settings.adminSecretCode,
-        lastBookingDuration: settings.lastBookingDuration ?? 1,
-        toasts, confirmation, isLoading,
-        isPwaInstallable: !!deferredPrompt,
+        lastBookingDuration: settings.lastBookingDuration || 1,
+        toasts,
+        confirmation,
+        isLoading,
+        isPwaInstallable,
         isStandalone,
         pwaInstalledOnce,
         triggerPwaInstall,
-        login, logout, register,
-        addBooking, deleteBooking, updateBooking,
-        updateUser, deleteUser,
-        addSector, updateSector, deleteSector,
-        addRole, updateRole, deleteRole,
-        addSala, updateSala, deleteSala,
-        setSettings, addToast, removeToast,
-        showConfirmation, hideConfirmation,
-        isUpdateAvailable: !!updateRegistration,
+        login,
+        logout,
+        register,
+        addBooking,
+        deleteBooking,
+        updateBooking,
+        updateUser,
+        deleteUser,
+        addSector,
+        updateSector,
+        deleteSector,
+        addRole,
+        updateRole,
+        deleteRole,
+        addSala,
+        updateSala,
+        deleteSala,
+        setSettings,
+        addToast,
+        removeToast,
+        showConfirmation,
+        handleConfirm,
+        handleCancel,
+        isUpdateAvailable,
         applyUpdate,
     };
 
-    return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+    return (
+        <AppContext.Provider value={contextValue}>
+            {children}
+        </AppContext.Provider>
+    );
 };
-
-export { AppContext };

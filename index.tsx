@@ -3,48 +3,16 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import { AppProvider } from './context/AppContext';
 
-// PWA Install Prompt Handling (as early as possible to avoid race conditions)
+// --- Global PWA Install Prompt Handler ---
+// By capturing the event here, we avoid race conditions where the event fires 
+// before the React component tree is ready to handle it.
 window.addEventListener('beforeinstallprompt', (e) => {
-  console.log('`beforeinstallprompt` event caught globally.');
-  // Prevent the mini-infobar from appearing on mobile
+  // Prevent the default browser prompt from appearing.
   e.preventDefault();
-  // Stash the event so it can be triggered later.
-  (window as any).deferredInstallPrompt = e;
-  // Notify the app that the prompt is ready
-  window.dispatchEvent(new CustomEvent('pwa-install-ready'));
+  // Dispatch a custom event that the React app can listen for once it's ready.
+  const installReadyEvent = new CustomEvent('pwa-install-ready', { detail: e });
+  window.dispatchEvent(installReadyEvent);
 });
-
-
-// PWA Service Worker Registration
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').then(registration => {
-      console.log('ServiceWorker registration successful with scope: ', registration.scope);
-      // --- PWA Update Logic ---
-      registration.onupdatefound = () => {
-        const installingWorker = registration.installing;
-        if (installingWorker) {
-          installingWorker.onstatechange = () => {
-            if (installingWorker.state === 'installed') {
-              if (navigator.serviceWorker.controller) {
-                // At this point, the updated precached content has been fetched,
-                // but the old service worker will still serve the old content
-                // until all client tabs are closed. We prompt the user to refresh.
-                console.log('New content is available for update.');
-                window.dispatchEvent(new CustomEvent('sw-update', { detail: registration }));
-              } else {
-                // Content is precached for the first time.
-                console.log('Content is cached for offline use.');
-              }
-            }
-          };
-        }
-      };
-    }).catch((err: any) => {
-      console.log('ServiceWorker registration failed: ', err);
-    });
-  });
-}
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

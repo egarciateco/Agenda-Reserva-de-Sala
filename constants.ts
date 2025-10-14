@@ -11,7 +11,9 @@ export const EMAILJS_PUBLIC_KEY = process.env.EMAILJS_PUBLIC_KEY || '';
 export const INITIAL_ADMIN_SECRET_CODE = 'TECO2025';
 
 export const INITIAL_SALAS = [
-    { id: '1', name: 'Sala D. French', address: 'Domingo French Nº 548 - Paraná - E. Ríos' },
+    { id: '1', name: 'Sala D. French', address: 'Domingo French Nº 548 - Paraná - Entre Ríos' },
+    { id: '2', name: 'Sala de Capacitación', address: 'Domingo French Nº 548 - Paraná - E. Ríos' },
+    { id: '3', name: 'Sala Directorio', address: 'Av. Corrientes 246 - CABA' },
 ];
 
 export const INITIAL_ROLES = [
@@ -46,4 +48,4 @@ export const DEFAULT_LOGO_URL = 'https://i.postimg.cc/bvr9syk6/Personal-logonuev
 export const DEFAULT_BACKGROUND_URL = 'https://i.postimg.cc/3NMv9VMS/oficina-moderna-paredes-verdes-pisos-madera-asientos-comodos-191095-99743.avif';
 export const DEFAULT_HOME_BACKGROUND_URL = 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
 export const DEFAULT_SITE_IMAGE_URL = 'https://i.postimg.cc/Hss2rxB2/IMAGEN-SITE.png';
-export const DEFAULT_SHAREABLE_URL = 'https://aistudio.google.com/apps/drive/1l4Kl9Ij-JCvhdNZmMVikjQ66OuSeGqFy?showAssistant=true&resourceKey=&showPreview=true';
+export const DEFAULT_SHAREABLE_URL = 'https://aistudio.google.com/apps/drive/11d6Ipe9A0KvKkiOhLVz-7Spg1UbocG-I?showAssistant=true&resourceKey=&showPreview=true';

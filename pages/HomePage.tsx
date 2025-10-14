@@ -6,39 +6,17 @@ const HomePage: FC = () => {
     const { logoUrl, homeBackgroundImageUrl } = useAppContext();
     const navigate = useNavigate();
 
-    const handleAccessWeb = async () => {
-        const elem = document.documentElement as any;
-
-        try {
-            // Check if we are not already in fullscreen mode using all vendor prefixes
-            const isNotFullscreen = !document.fullscreenElement &&
-                                    !(document as any).webkitFullscreenElement &&
-                                    !(document as any).mozFullScreenElement &&
-                                    !(document as any).msFullscreenElement;
-
-            if (isNotFullscreen) {
-                // Find the correct request method for the browser
-                const requestFullscreen = 
-                    elem.requestFullscreen || 
-                    elem.webkitRequestFullscreen || 
-                    elem.mozRequestFullScreen || 
-                    elem.msRequestFullscreen;
-
-                // If a method exists, call it
-                if (requestFullscreen) {
-                    await requestFullscreen.call(elem);
-                }
-            }
-        } catch (err) {
-            // Log any errors but don't block navigation
-            console.error(`Error attempting to enable full-screen mode: ${(err as Error).message} (${(err as Error).name})`);
-        } finally {
-            // Add a small delay to prevent a race condition where navigation
-            // interrupts the fullscreen transition on mobile devices.
-            setTimeout(() => {
-                navigate('/login');
-            }, 150);
+    const handleEnter = () => {
+        const elem = document.documentElement;
+        if (elem.requestFullscreen) {
+            // La solicitud de pantalla completa debe ser manejada en un evento de usuario.
+            // Los errores son esperados si el usuario deniega el permiso, por lo que los registramos de forma segura.
+            elem.requestFullscreen().catch(err => {
+                console.error(`Error al intentar activar el modo de pantalla completa: ${String(err)}`);
+            });
         }
+        // Navegar a la página de inicio de sesión después del clic.
+        navigate('/login');
     };
 
     return (
@@ -48,13 +26,13 @@ const HomePage: FC = () => {
         >
             <div className="absolute inset-0 bg-black bg-opacity-60"></div>
             
-            <main className="relative z-10 w-full max-w-md text-center">
+            <main className="relative z-10 w-full max-w-md text-center animate-fade-in-scale">
                 <div className="bg-gray-900 bg-opacity-80 p-10 rounded-xl shadow-2xl backdrop-blur-md">
                     
                     <img 
                         src={logoUrl} 
                         alt="TELECOM Logo" 
-                        className="h-16 object-contain mx-auto mb-6"
+                        className="h-20 object-contain mx-auto mb-6"
                     />
                     
                     <h1 className="text-5xl font-bold text-white mb-4 flex items-baseline justify-center gap-x-1">
@@ -63,18 +41,13 @@ const HomePage: FC = () => {
                     </h1>
                     
                     <p className="text-lg text-gray-300 mb-8">Gestión de Salas de Reuniones</p>
-                    
-                    <div className="space-y-4">
-                        <button
-                            onClick={handleAccessWeb}
-                            className="w-full flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition-all transform hover:scale-105"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                            </svg>
-                            <span>Acceder a la Web</span>
-                        </button>
-                    </div>
+
+                    <button
+                        onClick={handleEnter}
+                        className="w-full px-6 py-3 text-lg font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-transform transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50"
+                    >
+                        Ingresar
+                    </button>
                 </div>
             </main>
 
@@ -84,6 +57,15 @@ const HomePage: FC = () => {
                     <p>Esteban García. - Para uso exclusivo de Telecom Argentina S.A.</p>
                 </div>
             </footer>
+            <style>{`
+                @keyframes fade-in-scale {
+                    from { opacity: 0; transform: scale(0.9); }
+                    to { opacity: 1; transform: scale(1); }
+                }
+                .animate-fade-in-scale {
+                    animation: fade-in-scale 1.5s ease-out forwards;
+                }
+            `}</style>
         </div>
     );
 };

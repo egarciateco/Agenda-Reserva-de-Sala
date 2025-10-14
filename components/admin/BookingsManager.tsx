@@ -5,7 +5,7 @@ import { formatUserText, formatDateForInput } from '../../utils/helpers';
 import { TIME_SLOTS } from '../../constants';
 
 const BookingsManager: FC = () => {
-    const { bookings, users, sectors, salas, updateBooking, deleteBooking, addToast, showConfirmation } = useAppContext();
+    const { bookings, users, sectors, salas, updateBooking, deleteBooking, showConfirmation } = useAppContext();
     const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -66,8 +66,7 @@ const BookingsManager: FC = () => {
                 await updateBooking(editingBooking);
                 setEditingBooking(null);
             } catch (error) {
-                console.error("Failed to update booking", error);
-                addToast('Error al actualizar la reserva.', 'error');
+                // Error toast is shown by context
             } finally {
                 setIsSaving(false);
             }
@@ -85,8 +84,7 @@ const BookingsManager: FC = () => {
             try {
                 await deleteBooking(booking.id);
             } catch (error) {
-                console.error("Failed to delete booking", error);
-                addToast('Error al eliminar la reserva.', 'error');
+                // Error toast is shown by context
             } finally {
                 setDeletingId(null);
             }
@@ -108,8 +106,8 @@ const BookingsManager: FC = () => {
         <div>
             <h2 className="text-xl font-bold mb-4 text-white">Historial y Gestión de Reservas</h2>
             
-            <div className="bg-gray-800 p-4 rounded-lg mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end text-xs">
-                <div className="lg:col-span-4">
+            <div className="bg-gray-800 p-4 rounded-lg mb-6 space-y-4 text-xs">
+                <div>
                     <label className="block text-gray-300 mb-1 font-semibold">Buscar por Nombre/Email</label>
                     <input 
                         type="text" 
@@ -119,46 +117,49 @@ const BookingsManager: FC = () => {
                         className="filter-input-style"
                     />
                 </div>
-
-                <div>
-                    <label className="block text-gray-300 mb-1">Usuario</label>
-                    <select value={filterUser} onChange={e => setFilterUser(e.target.value)} className="filter-input-style">
-                        <option value="">Todos</option>
-                        {users.map(user => (
-                            <option key={user.id} value={user.id}>{`${user.lastName}, ${user.firstName}`}</option>
-                        ))}
-                    </select>
-                </div>
-                <div>
-                     <label className="block text-gray-300 mb-1">Sector</label>
-                     <select value={filterSector} onChange={e => setFilterSector(e.target.value)} className="filter-input-style">
-                        <option value="">Todos</option>
-                        {sectors.map(sector => (
-                            <option key={sector.id} value={sector.name}>{sector.name}</option>
-                        ))}
-                    </select>
-                </div>
-                <div>
-                     <label className="block text-gray-300 mb-1">Sala</label>
-                     <select value={filterSala} onChange={e => setFilterSala(e.target.value)} className="filter-input-style">
-                        <option value="">Todas</option>
-                        {salas.map(sala => (
-                            <option key={sala.id} value={sala.id}>{sala.name}</option>
-                        ))}
-                    </select>
-                </div>
-                <div>
-                    <label className="block text-gray-300 mb-1">Desde</label>
-                    <input type="date" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} className="filter-input-style"/>
-                </div>
-                <div>
-                    <label className="block text-gray-300 mb-1">Hasta</label>
-                    <input type="date" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} className="filter-input-style"/>
-                </div>
-                 <div className="lg:col-span-4 flex justify-end">
-                    <button onClick={handleResetFilters} className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-md transition h-[38px]">
-                        Limpiar Filtros
-                    </button>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+                    <div>
+                        <label className="block text-gray-300 mb-1">Usuario</label>
+                        <select value={filterUser} onChange={e => setFilterUser(e.target.value)} className="filter-input-style">
+                            <option value="">Todos</option>
+                            {users.map(user => (
+                                <option key={user.id} value={user.id}>{`${user.lastName}, ${user.firstName}`}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                         <label className="block text-gray-300 mb-1">Sector</label>
+                         <select value={filterSector} onChange={e => setFilterSector(e.target.value)} className="filter-input-style">
+                            <option value="">Todos</option>
+                            {sectors.map(sector => (
+                                <option key={sector.id} value={sector.name}>{sector.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                         <label className="block text-gray-300 mb-1">Sala</label>
+                         <select value={filterSala} onChange={e => setFilterSala(e.target.value)} className="filter-input-style">
+                            <option value="">Todas</option>
+                            {salas.map(sala => (
+                                <option key={sala.id} value={sala.id}>{sala.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-gray-300 mb-1">Desde</label>
+                        <input type="date" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} className="filter-input-style"/>
+                    </div>
+                    <div>
+                        <label className="block text-gray-300 mb-1">Hasta</label>
+                        <input type="date" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} className="filter-input-style"/>
+                    </div>
+                     <div>
+                        <label className="block text-gray-300 mb-1 invisible">Acción</label> {/* Invisible label for alignment */}
+                        <button onClick={handleResetFilters} className="w-full px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-md transition h-[38px]">
+                            Limpiar Filtros
+                        </button>
+                    </div>
                 </div>
             </div>
 

@@ -3,7 +3,7 @@ import { useAppContext } from '../../hooks/useAppContext';
 import { Role } from '../../types';
 
 const RolesManager: FC = () => {
-    const { roles, addRole, updateRole, deleteRole, addToast, showConfirmation } = useAppContext();
+    const { roles, addRole, updateRole, deleteRole, showConfirmation } = useAppContext();
     const [newRoleName, setNewRoleName] = useState('');
     const [editingRole, setEditingRole] = useState<Role | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -17,8 +17,7 @@ const RolesManager: FC = () => {
                 await addRole(newRoleName.trim());
                 setNewRoleName('');
             } catch (error) {
-                console.error("Failed to add role", error);
-                addToast('Error al añadir el rol.', 'error');
+                // Error toast is shown by context
             } finally {
                 setIsAdding(false);
             }
@@ -32,8 +31,7 @@ const RolesManager: FC = () => {
                 await updateRole(editingRole);
                 setEditingRole(null);
             } catch (error) {
-                console.error("Failed to update role", error);
-                addToast('Error al actualizar el rol.', 'error');
+                // Error toast is shown by context
             } finally {
                 setIsSaving(null);
             }
@@ -46,8 +44,7 @@ const RolesManager: FC = () => {
             try {
                 await deleteRole(role.id);
             } catch (error) {
-                console.error("Failed to delete role", error);
-                addToast('Error al eliminar el rol.', 'error');
+                // Error toast is shown by context
             } finally {
                 setDeletingId(null);
             }

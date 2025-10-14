@@ -1,5 +1,5 @@
 import { useState, FC, ChangeEvent, FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAppContext } from '../hooks/useAppContext';
 
 const PasswordInput: FC<{name: string, value: string, placeholder: string, onChange: (e: ChangeEvent<HTMLInputElement>) => void, required?: boolean}> = 
@@ -15,6 +15,7 @@ const PasswordInput: FC<{name: string, value: string, placeholder: string, onCha
                 onChange={onChange}
                 required={required}
                 className="input-style w-full pr-10"
+                autoComplete={name === 'password' ? 'new-password' : 'off'}
             />
             <button
                 type="button"
@@ -34,7 +35,6 @@ const PasswordInput: FC<{name: string, value: string, placeholder: string, onCha
 
 const RegisterPage: FC = () => {
     const { register, sectors, roles, logoUrl, adminSecretCode, addToast } = useAppContext();
-    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
@@ -46,30 +46,22 @@ const RegisterPage: FC = () => {
         confirmPassword: '',
         adminCode: ''
     });
-    const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     
     const isRegisteringAsAdmin = formData.role === 'Administrador';
 
     const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
-
         if (name === 'phone') {
             const digits = value.replace(/\D/g, '').substring(0, 10);
             let formattedPhone = '';
-            if (digits.length > 0) {
-                formattedPhone = `(${digits.substring(0, 3)}`;
-            }
-            if (digits.length > 3) {
-                formattedPhone += `)-${digits.substring(3)}`;
-            }
+            if (digits.length > 0) formattedPhone = `(${digits.substring(0, 3)}`;
+            if (digits.length > 3) formattedPhone += `)-${digits.substring(3)}`;
             setFormData(prev => ({ ...prev, phone: formattedPhone }));
         } else {
             setFormData(prev => {
                 const newState = { ...prev, [name]: value };
-                if (name === 'role' && value === 'Administrador') {
-                    newState.sector = ''; 
-                }
+                if (name === 'role' && value === 'Administrador') newState.sector = ''; 
                 return newState;
             });
         }
@@ -77,46 +69,45 @@ const RegisterPage: FC = () => {
     
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
-        setError('');
-        setIsLoading(true);
         
+        // --- General Validations ---
         const phoneDigits = formData.phone.replace(/\D/g, '');
         if (phoneDigits.length !== 10) {
-            setError('El número de celular debe tener 10 dígitos.');
-            setIsLoading(false);
+            addToast('El número de celular debe tener 10 dígitos.', 'error');
             return;
         }
 
-        if (formData.password.length < 6) {
-            setError('La contraseña debe tener al menos 6 caracteres.');
-            setIsLoading(false);
-            return;
-        }
-        if (formData.password !== formData.confirmPassword) {
-            setError('Las contraseñas no coinciden.');
-            setIsLoading(false);
-            return;
+        let passwordForRegistration = '';
+
+        // --- Role-specific Validations ---
+        if (isRegisteringAsAdmin) {
+            if (formData.adminCode.trim() !== adminSecretCode) {
+                addToast('El código de autorización de administrador es incorrecto.', 'error');
+                return;
+            }
+            passwordForRegistration = formData.adminCode;
+        } else {
+            if (formData.password.length < 6) {
+                addToast('La contraseña debe tener al menos 6 caracteres.', 'error');
+                return;
+            }
+            if (formData.password !== formData.confirmPassword) {
+                addToast('Las contraseñas no coinciden.', 'error');
+                return;
+            }
+            passwordForRegistration = formData.password;
         }
 
-        if (isRegisteringAsAdmin && formData.adminCode !== adminSecretCode) {
-            setError('El código de administrador es incorrecto.');
-            setIsLoading(false);
-            return;
-        }
-
+        setIsLoading(true);
+        // Destructure all password-related fields to create a clean user data object.
         const { password, confirmPassword, adminCode, ...userData } = formData;
         
         try {
-            const success = await register(userData, password);
-            if (success) {
-                addToast('¡Cuenta creada exitosamente! Por favor, inicie sesión.', 'success');
-                navigate('/login');
-            } else {
-                // The error toast is now shown from the context for more specific errors like "email-already-in-use"
-                setError('No se pudo crear la cuenta. Intente de nuevo.');
-            }
+            await register(userData, passwordForRegistration);
+            addToast('¡Cuenta creada exitosamente! Redirigiendo...', 'success');
+            // Navigation is handled by PublicRoute in App.tsx
         } catch (err) {
-            setError('Ocurrió un error inesperado al registrar la cuenta.');
+            // The specific error (e.g., email in use) is shown by the context.
         } finally {
             setIsLoading(false);
         }
@@ -131,7 +122,6 @@ const RegisterPage: FC = () => {
             <main className="w-full max-w-lg">
                 <div className="bg-gray-900 bg-opacity-80 p-8 rounded-xl shadow-2xl backdrop-blur-md text-white">
                     <h2 className="text-3xl font-bold text-center mb-8">Crear Cuenta</h2>
-                    {error && <p className="bg-red-500 text-white p-3 rounded-md mb-4 text-center">{error}</p>}
                     <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                         <input name="firstName" placeholder="Nombre" value={formData.firstName} onChange={handleChange} required className="input-style" />
                         <input name="lastName" placeholder="Apellido" value={formData.lastName} onChange={handleChange} required className="input-style" />
@@ -153,15 +143,35 @@ const RegisterPage: FC = () => {
                             {roles.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
                         </select>
                         
-                        <PasswordInput name="password" value={formData.password} placeholder="Contraseña (mín. 6 caracteres)" onChange={handleChange} required />
-                        <PasswordInput name="confirmPassword" value={formData.confirmPassword} placeholder="Confirmar Contraseña" onChange={handleChange} required />
-
-                        {isRegisteringAsAdmin && (
-                            <div className="md:col-span-2 transition-all duration-300">
-                                <PasswordInput name="adminCode" value={formData.adminCode} placeholder="Código de Administrador" onChange={handleChange} required />
+                        {isRegisteringAsAdmin ? (
+                             <div className="md:col-span-2 transition-all duration-300">
+                                <PasswordInput 
+                                    name="adminCode" 
+                                    value={formData.adminCode} 
+                                    placeholder="Código de Autorización de Admin" 
+                                    onChange={handleChange} 
+                                    required 
+                                />
                             </div>
+                        ) : (
+                            <>
+                                <PasswordInput 
+                                    name="password" 
+                                    value={formData.password} 
+                                    placeholder="Contraseña (mín. 6 caracteres)" 
+                                    onChange={handleChange} 
+                                    required 
+                                />
+                                <PasswordInput 
+                                    name="confirmPassword" 
+                                    value={formData.confirmPassword} 
+                                    placeholder="Confirmar Contraseña" 
+                                    onChange={handleChange} 
+                                    required 
+                                />
+                            </>
                         )}
-                        
+
                         <button type="submit" className="md:col-span-2 w-full py-3 mt-4 bg-blue-600 hover:bg-blue-700 rounded-md transition-colors disabled:bg-blue-800" disabled={isLoading}>
                             {isLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
                         </button>

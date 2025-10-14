@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect, FC, ChangeEvent, MouseEvent } from 'react';
+import { useState, useRef, useEffect, FC, ChangeEvent } from 'react';
 import { useAppContext } from '../../hooks/useAppContext';
 import { formatUserText } from '../../utils/helpers';
 import { User } from '../../types';
 
 const UsersManager: FC = () => {
-    const { users, sectors, roles, updateUser, deleteUser, addToast, showConfirmation } = useAppContext();
+    const { users, sectors, roles, updateUser, deleteUser, showConfirmation } = useAppContext();
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [showMenu, setShowMenu] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -41,8 +41,7 @@ const UsersManager: FC = () => {
                 await updateUser(editingUser);
                 setEditingUser(null);
             } catch (error) {
-                 console.error("Failed to update user", error);
-                 addToast('Error al actualizar el usuario.', 'error');
+                 // Error toast is shown by context
             } finally {
                 setIsSaving(false);
             }
@@ -56,8 +55,7 @@ const UsersManager: FC = () => {
             try {
                 await deleteUser(user.id);
             } catch (error) {
-                console.error("Failed to delete user", error);
-                addToast('Error al eliminar el usuario.', 'error');
+                // Error toast is shown by context
             } finally {
                 setDeletingId(null);
             }

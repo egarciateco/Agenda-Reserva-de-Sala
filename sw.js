@@ -1,4 +1,4 @@
-const CACHE_NAME = 'telecom-reserva-cache-v9'; // Incremented version
+const CACHE_NAME = 'telecom-reserva-cache-v23'; // Incremented version
 const urlsToCache = [
   '/',
   '/index.html',

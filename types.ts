@@ -54,11 +54,10 @@ export interface ConfirmationOptions {
   confirmButtonClass?: string;
 }
 
+// FIX: onConfirm and onCancel removed to prevent storing functions in state.
 export interface ConfirmationState extends ConfirmationOptions {
   isOpen: boolean;
   message: string;
-  onConfirm: () => void;
-  onCancel: () => void;
 }
 
 export interface AppContextType {
@@ -81,10 +80,10 @@ export interface AppContextType {
     isStandalone: boolean;
     pwaInstalledOnce: boolean;
     triggerPwaInstall: () => void;
-    login: (email: string, pass: string) => Promise<boolean>;
+    login: (email: string, pass: string) => Promise<void>;
     logout: () => void;
-    register: (user: Omit<User, 'id'>, pass: string) => Promise<boolean>;
-    addBooking: (booking: Omit<Booking, 'id'>) => Promise<string>;
+    register: (user: Omit<User, 'id'>, pass: string) => Promise<void>;
+    addBooking: (booking: Omit<Booking, 'id'>) => Promise<void>;
     deleteBooking: (bookingId: string) => Promise<void>;
     updateBooking: (booking: Booking) => Promise<void>;
     updateUser: (user: User) => Promise<void>;
@@ -102,7 +101,8 @@ export interface AppContextType {
     addToast: (message: string, type: 'success' | 'error') => void;
     removeToast: (id: number) => void;
     showConfirmation: (message: string, onConfirm: () => void, options?: ConfirmationOptions) => void;
-    hideConfirmation: () => void;
+    handleConfirm: () => void;
+    handleCancel: () => void;
     isUpdateAvailable: boolean;
     applyUpdate: () => void;
 }

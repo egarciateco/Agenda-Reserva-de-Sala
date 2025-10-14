@@ -1,4 +1,4 @@
-import { FC, useRef, ReactElement } from 'react';
+import { FC, useRef, ReactElement, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -58,7 +58,7 @@ const ToastContainer: FC = () => {
 };
 
 const ConfirmationModal: FC = () => {
-    const { confirmation } = useAppContext();
+    const { confirmation, handleConfirm, handleCancel } = useAppContext();
     const nodeRef = useRef(null);
 
     if (!confirmation.isOpen) return null;
@@ -69,10 +69,10 @@ const ConfirmationModal: FC = () => {
                 <h3 className="text-lg font-bold mb-4">Confirmar Acción</h3>
                 <p className="text-gray-300 mb-6">{confirmation.message}</p>
                 <div className="flex justify-end space-x-4">
-                    <button onClick={confirmation.onCancel} className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-md transition">
+                    <button onClick={handleCancel} className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-md transition">
                         {confirmation.cancelText || 'Cancelar'}
                     </button>
-                    <button onClick={confirmation.onConfirm} className={`px-4 py-2 rounded-md transition ${confirmation.confirmButtonClass || 'bg-red-600 hover:bg-red-700'}`}>
+                    <button onClick={handleConfirm} className={`px-4 py-2 rounded-md transition ${confirmation.confirmButtonClass || 'bg-red-600 hover:bg-red-700'}`}>
                         {confirmation.confirmText || 'Confirmar'}
                     </button>
                 </div>
@@ -121,8 +121,73 @@ const UpdateBanner: FC = () => {
 };
 
 const AppContent: FC = () => {
-    const { backgroundImageUrl, homeBackgroundImageUrl, isLoading } = useAppContext();
+    const { backgroundImageUrl, homeBackgroundImageUrl, isLoading, siteImageUrl } = useAppContext();
     const location = useLocation();
+
+    useEffect(() => {
+        // Dynamically create and inject the manifest to use the admin-defined site image URL as the app icon.
+        if (isLoading || !siteImageUrl) {
+            return;
+        }
+
+        const manifest = {
+            short_name: "Reserva Telecom",
+            name: "Reserva de Sala de TELECOM",
+            description: "La presente aplicación funciona como agenda de reservas para uso de salas de reuniones dentro de las bases de Telecom.",
+            icons: [
+                {
+                    src: siteImageUrl,
+                    type: "image/png",
+                    sizes: "192x192",
+                    purpose: "any maskable"
+                },
+                {
+                    src: siteImageUrl,
+                    type: "image/png",
+                    sizes: "512x512",
+                    purpose: "any maskable"
+                }
+            ],
+            start_url: ".",
+            display: "standalone",
+            theme_color: "#2563eb",
+            background_color: "#111827"
+        };
+        
+        const getMimeType = (url: string) => {
+            const lowerUrl = url.toLowerCase();
+            if (lowerUrl.endsWith('.png')) return 'image/png';
+            if (lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg')) return 'image/jpeg';
+            if (lowerUrl.endsWith('.webp')) return 'image/webp';
+            return 'image/png';
+        };
+
+        manifest.icons.forEach(icon => {
+            icon.type = getMimeType(siteImageUrl);
+        });
+
+        const manifestString = JSON.stringify(manifest);
+        const manifestBlob = new Blob([manifestString], { type: 'application/json' });
+        const manifestUrl = URL.createObjectURL(manifestBlob);
+
+        const oldLink = document.querySelector('link[rel="manifest"]');
+        if (oldLink) {
+          oldLink.remove();
+        }
+        
+        const link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = manifestUrl;
+        document.head.appendChild(link);
+
+        return () => {
+          if (link.parentElement) {
+            document.head.removeChild(link);
+          }
+          URL.revokeObjectURL(manifestUrl);
+        };
+    }, [siteImageUrl, isLoading]);
+
 
     const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
     const isHomePage = location.pathname === '/' || isAuthPage || location.pathname === '/logout';
@@ -150,8 +215,8 @@ const AppContent: FC = () => {
             <UpdateBanner />
             <Routes>
                 <Route path="/" element={<HomeRedirector />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+                <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
                 <Route path="/logout" element={<LogoutPage />} />
                 <Route path="/agenda" element={<ProtectedRoute><AgendaPage /></ProtectedRoute>} />
                 <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
@@ -164,6 +229,41 @@ const AppContent: FC = () => {
 };
 
 const App: FC = () => {
+    useEffect(() => {
+        const registerServiceWorker = () => {
+            if ('serviceWorker' in navigator) {
+                const swUrl = new URL('sw.js', window.location.origin).href;
+                navigator.serviceWorker.register(swUrl).then(registration => {
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    // --- PWA Update Logic ---
+                    registration.onupdatefound = () => {
+                        const installingWorker = registration.installing;
+                        if (installingWorker) {
+                            installingWorker.onstatechange = () => {
+                                if (installingWorker.state === 'installed') {
+                                    if (navigator.serviceWorker.controller) {
+                                        console.log('New content is available for update.');
+                                        window.dispatchEvent(new CustomEvent('sw-update', { detail: registration }));
+                                    } else {
+                                        console.log('Content is cached for offline use.');
+                                    }
+                                }
+                            };
+                        }
+                    };
+                }).catch((err: any) => {
+                    console.error('ServiceWorker registration failed:', String(err));
+                });
+            }
+        };
+
+        // Defer service worker registration until after the page has fully loaded
+        // to prevent "InvalidStateError" and avoid contention for resources on initial load.
+        window.addEventListener('load', () => {
+            registerServiceWorker();
+        });
+    }, []); // The empty dependency array ensures this runs only once.
+
     return (
         <HashRouter>
             <AppContent />
@@ -171,13 +271,11 @@ const App: FC = () => {
     );
 };
 
-// FIX: Replaced JSX.Element with React.ReactElement to resolve "Cannot find namespace 'JSX'" error.
 const ProtectedRoute: FC<{ children: ReactElement }> = ({ children }) => {
     const { currentUser } = useAppContext();
     return currentUser ? children : <Navigate to="/" />;
 };
 
-// FIX: Replaced JSX.Element with React.ReactElement to resolve "Cannot find namespace 'JSX'" error.
 const AdminRoute: FC<{ children: ReactElement }> = ({ children }) => {
     const { currentUser } = useAppContext();
     if (!currentUser) {
@@ -185,5 +283,18 @@ const AdminRoute: FC<{ children: ReactElement }> = ({ children }) => {
     }
     return currentUser.role === 'Administrador' ? children : <Navigate to="/agenda" />;
 };
+
+const PublicRoute: FC<{ children: ReactElement }> = ({ children }) => {
+    const { currentUser, isLoading } = useAppContext();
+
+    if (isLoading) {
+        // Mientras se verifica el estado de autenticación, no renderizar nada
+        // para evitar un parpadeo de la pantalla de login.
+        return null;
+    }
+
+    return currentUser ? <Navigate to="/agenda" /> : children;
+};
+
 
 export default App;

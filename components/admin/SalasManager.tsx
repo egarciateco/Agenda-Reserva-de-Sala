@@ -12,7 +12,7 @@ const SalasManager: FC = () => {
     const [isAdding, setIsAdding] = useState(false);
 
     const handleSubmit = async (e: FormEvent) => {
-        e.preventDefault(); // Evita que la página se recargue
+        e.preventDefault();
         if (!newSalaName.trim()) {
             addToast('El nombre de la sala no puede estar vacío.', 'error');
             return;
@@ -24,8 +24,7 @@ const SalasManager: FC = () => {
             setNewSalaName('');
             setNewSalaAddress('');
         } catch (error) {
-            console.error("Failed to add sala", error);
-            addToast('Error al añadir la sala.', 'error');
+            // Error toast is shown by context
         } finally {
             setIsAdding(false);
         }
@@ -38,8 +37,7 @@ const SalasManager: FC = () => {
                 await updateSala(editingSala);
                 setEditingSala(null);
             } catch (error) {
-                console.error("Failed to update sala", error);
-                addToast('Error al actualizar la sala.', 'error');
+                // Error toast is shown by context
             } finally {
                 setIsSaving(null);
             }
@@ -52,8 +50,7 @@ const SalasManager: FC = () => {
             try {
                 await deleteSala(sala.id);
             } catch (error) {
-                console.error("Failed to delete sala", error);
-                addToast('Error al eliminar la sala.', 'error');
+                // Error toast is shown by context
             } finally {
                 setDeletingId(null);
             }

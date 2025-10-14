@@ -1,29 +1,23 @@
 import { useState, FC, FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAppContext } from '../hooks/useAppContext';
 
 const LoginPage: FC = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-    const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { login, logoUrl } = useAppContext();
-    const navigate = useNavigate();
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
-        setError('');
         setIsLoading(true);
         try {
-            const success = await login(email, password);
-            if (success) {
-                navigate('/agenda');
-            } else {
-                setError('Email o contraseña incorrectos.');
-            }
+            await login(email, password);
+            // La navegación ahora es manejada por PublicRoute en App.tsx
         } catch (err) {
-            setError('Ocurrió un error inesperado.');
+            // El error es manejado por el contexto, que muestra un toast.
+            // Solo necesitamos detener el spinner de carga.
         } finally {
             setIsLoading(false);
         }
@@ -38,7 +32,6 @@ const LoginPage: FC = () => {
             <main className="w-full max-w-md">
                 <div className="bg-gray-900 bg-opacity-80 p-8 rounded-xl shadow-2xl backdrop-blur-md">
                     <h2 className="text-3xl font-bold text-center text-white mb-8">Iniciar Sesión</h2>
-                    {error && <p className="bg-red-500 text-white p-3 rounded-md mb-4 text-center">{error}</p>}
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
                             <label className="block text-sm font-medium text-gray-300">Email</label>

@@ -50,20 +50,17 @@ const ConfigManager: FC = () => {
     const shareableUrl = DEFAULT_SHAREABLE_URL;
     
     const handleSave = async () => {
+        if (!newAdminCode.trim()) {
+            addToast('El código de administrador no puede estar vacío.', 'error');
+            return;
+        }
         setIsSaving(true);
         try {
-            if (!newAdminCode.trim()) {
-                addToast('El código de administrador no puede estar vacío.', 'error');
-                setIsSaving(false);
-                return;
-            }
             await setSettings({ 
                 adminSecretCode: newAdminCode
             });
-            addToast('Configuración guardada.', 'success');
         } catch(error) {
-            console.error("Failed to save settings", error);
-            addToast('Error al guardar la configuración.', 'error');
+            // Error toast is shown by context
         } finally {
             setIsSaving(false);
         }
@@ -79,7 +76,7 @@ const ConfigManager: FC = () => {
                 <StaticImageDisplay label="Imagen de Fondo - Página de Inicio (Fija)" value={homeBackgroundImageUrl} />
                 <StaticImageDisplay label="Imagen Site - Ubicación en Agenda (Fija)" value={siteImageUrl} />
 
-                <StaticUrlDisplay label="URL de la Aplicación para Compartir (Fija)" value={shareableUrl} addToast={addToast} />
+                <StaticUrlDisplay label="URL Base de la Aplicación" value={shareableUrl} addToast={addToast} />
 
                  <div>
                     <label className="block text-sm font-medium text-white mb-2">Código de Administrador</label>
