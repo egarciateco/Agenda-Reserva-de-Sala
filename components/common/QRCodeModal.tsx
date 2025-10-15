@@ -14,9 +14,12 @@ const QRCodeModal: FC = () => {
         }
     }, []);
 
+    // FIX: Add a unique timestamp as a cache-busting query parameter.
+    // This forces services like WhatsApp to re-fetch the link metadata (like og:image)
+    // instead of serving a stale, cached version that might be missing the preview image.
+    const shareUrl = `${DEFAULT_SHAREABLE_URL}&v=${Date.now()}`;
+
     const handleCopyLink = async () => {
-        const shareUrl = DEFAULT_SHAREABLE_URL;
-        
         if (navigator.clipboard && window.isSecureContext) {
             try {
                 await navigator.clipboard.writeText(shareUrl);
@@ -47,15 +50,14 @@ const QRCodeModal: FC = () => {
     };
 
     const handleNativeShare = async () => {
-        const shareUrl = DEFAULT_SHAREABLE_URL;
         const title = 'Reserva de Sala - TELECOM';
         const text = 'Accede a la aplicación de reserva de salas de Telecom.';
 
         setIsSharing(true);
         try {
-            // By sharing only the URL, we allow apps like WhatsApp to create a rich link preview.
-            // This preview uses the 'og:image' meta tag from the app's HTML, making the
-            // entire preview card (image included) a clickable link.
+            // By sharing only the URL (with the cache buster), we allow apps like WhatsApp 
+            // to create a rich link preview. This preview uses the 'og:image' meta tag 
+            // from the app's HTML, making the entire preview card clickable.
             const shareData = {
                 title: title,
                 text: text,
@@ -81,7 +83,7 @@ const QRCodeModal: FC = () => {
     }
 
     // --- Links for Fallback Buttons ---
-    const shareText = `Accede a la aplicación de reserva de salas de Telecom: ${DEFAULT_SHAREABLE_URL}`;
+    const shareText = `Accede a la aplicación de reserva de salas de Telecom: ${shareUrl}`;
     const whatsappLink = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
     const emailSubject = 'App de Reserva de Salas - TELECOM';
     const emailBody = `
@@ -89,11 +91,11 @@ const QRCodeModal: FC = () => {
         <p style="font-family: sans-serif; color: #333;">Te comparto el acceso a la aplicación de reserva de salas de Telecom.</p>
         <p style="font-family: sans-serif; color: #333;">Puedes hacer clic en la imagen o en el botón de abajo para acceder.</p>
         <br>
-        <a href="${DEFAULT_SHAREABLE_URL}" style="display: inline-block;">
+        <a href="${shareUrl}" style="display: inline-block;">
             <img src="${siteImageUrl}" alt="Reserva de Sala - TELECOM" style="width: 100px; height: auto; border-radius: 12px; border: 1px solid #ddd;" />
         </a>
         <br><br>
-        <a href="${DEFAULT_SHAREABLE_URL}" style="font-family: sans-serif; font-size: 14px; text-decoration: none; background-color: #2563eb; color: white; padding: 12px 20px; border-radius: 8px; display: inline-block;">Abrir la aplicación</a>
+        <a href="${shareUrl}" style="font-family: sans-serif; font-size: 14px; text-decoration: none; background-color: #2563eb; color: white; padding: 12px 20px; border-radius: 8px; display: inline-block;">Abrir la aplicación</a>
         <br><br>
     `;
     const mailtoLink = `mailto:?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
