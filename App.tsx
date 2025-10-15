@@ -10,7 +10,6 @@ import { ToastMessage } from './types';
 import HomePage from './pages/HomePage';
 import LogoutPage from './pages/LogoutPage';
 import InstallPWAButton from './components/common/InstallPWAButton';
-import { DEFAULT_SHAREABLE_URL } from './constants';
 
 const Toast: FC<{ toast: ToastMessage }> = ({ toast }) => {
     const { removeToast } = useAppContext();
@@ -123,100 +122,9 @@ const UpdateBanner: FC = () => {
 };
 
 const AppContent: FC = () => {
-    const { backgroundImageUrl, homeBackgroundImageUrl, isLoading, siteImageUrl } = useAppContext();
+    const { backgroundImageUrl, homeBackgroundImageUrl, isLoading } = useAppContext();
     const location = useLocation();
-
-    useEffect(() => {
-        // Dynamically create and inject the manifest to use the admin-defined site image URL as the app icon.
-        if (isLoading || !siteImageUrl) {
-            return;
-        }
-
-        const manifest = {
-            short_name: "Reserva Telecom",
-            name: "Reserva de Sala de TELECOM",
-            description: "La presente aplicación funciona como agenda de reservas para uso de salas de reuniones dentro de las bases de Telecom.",
-            icons: [
-                {
-                    src: siteImageUrl,
-                    type: "image/png",
-                    sizes: "192x192",
-                    purpose: "any maskable"
-                },
-                {
-                    src: siteImageUrl,
-                    type: "image/png",
-                    sizes: "512x512",
-                    purpose: "any maskable"
-                }
-            ],
-            start_url: ".",
-            display: "standalone",
-            theme_color: "#2563eb",
-            background_color: "#111827"
-        };
-        
-        const getMimeType = (url: string) => {
-            const lowerUrl = url.toLowerCase();
-            if (lowerUrl.endsWith('.png')) return 'image/png';
-            if (lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg')) return 'image/jpeg';
-            if (lowerUrl.endsWith('.webp')) return 'image/webp';
-            return 'image/png';
-        };
-
-        manifest.icons.forEach(icon => {
-            icon.type = getMimeType(siteImageUrl);
-        });
-
-        const manifestString = JSON.stringify(manifest);
-        const manifestBlob = new Blob([manifestString], { type: 'application/json' });
-        const manifestUrl = URL.createObjectURL(manifestBlob);
-
-        const oldLink = document.querySelector('link[rel="manifest"]');
-        if (oldLink) {
-          oldLink.remove();
-        }
-        
-        const link = document.createElement('link');
-        link.rel = 'manifest';
-        link.href = manifestUrl;
-        document.head.appendChild(link);
-
-        return () => {
-          if (link.parentElement) {
-            document.head.removeChild(link);
-          }
-          URL.revokeObjectURL(manifestUrl);
-        };
-    }, [siteImageUrl, isLoading]);
-
-    // --- Dynamic Meta Tags for Social Sharing ---
-    useEffect(() => {
-        if (isLoading || !siteImageUrl) {
-            return;
-        }
-
-        const updateMetaTag = (property: string, content: string, isNameAttribute = false) => {
-            const selector = isNameAttribute ? `meta[name="${property}"]` : `meta[property="${property}"]`;
-            let element = document.querySelector(selector) as HTMLMetaElement;
-            if (element) {
-                element.content = content;
-            }
-        };
-        
-        const appUrl = DEFAULT_SHAREABLE_URL;
-
-        // Open Graph (Facebook, WhatsApp, etc.)
-        updateMetaTag('og:image', siteImageUrl);
-        updateMetaTag('og:url', appUrl);
-
-        // Twitter Card
-        updateMetaTag('twitter:image', siteImageUrl, true);
-        updateMetaTag('twitter:url', appUrl, true);
-
-    }, [siteImageUrl, isLoading]);
-
-
+    
     const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
     const isHomePage = location.pathname === '/' || isAuthPage || location.pathname === '/logout';
     const activeBg = isHomePage ? homeBackgroundImageUrl : backgroundImageUrl;
