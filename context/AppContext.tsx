@@ -162,7 +162,7 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
         handleCancel();
     };
 
-    // --- Firebase Auth State Change Listener (Definitive & Robust) ---
+    // --- Firebase Auth State Change Listener (Simplified & Robust) ---
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
             if (authUser) {
@@ -171,22 +171,11 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
                     const userData = { id: userDoc.id, ...userDoc.data() } as User;
                     setCurrentUser(userData);
                 } else {
-                    // This logic is crucial to differentiate a new registration from a true "orphaned" account.
-                    const metadata = authUser.metadata;
-                    const creationTime = new Date(metadata.creationTime || 0).getTime();
-                    const lastSignInTime = new Date(metadata.lastSignInTime || 0).getTime();
-                    
-                    // If the account was created less than 2 seconds ago, it's a new registration in progress.
-                    // We should NOT sign them out, as the `register` function is still writing their userDoc.
-                    const isNewUserRegistration = Math.abs(creationTime - lastSignInTime) < 2000;
-
-                    if (!isNewUserRegistration) {
-                        // This is a true orphaned account (e.g., old account, DB entry deleted).
-                        // Sign them out to prevent an inconsistent state.
-                        setCurrentUser(null);
-                        auth.signOut();
-                    }
-                    // If it IS a new user, we do nothing here and let the `register` function complete.
+                    // If an auth user exists but has no Firestore document, it's an inconsistent state.
+                    // This could be an orphaned account from a failed registration.
+                    // The safest action is to sign them out to prevent the app from being in a broken state.
+                    auth.signOut();
+                    setCurrentUser(null);
                 }
             } else {
                 setCurrentUser(null);
@@ -246,9 +235,9 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
             };
             
             await db.collection('users').doc(createdAuthUser.uid).set(userDocumentData);
-            // After successful registration and data storage, sign the user out
-            // to enforce the "register then login" flow.
-            await auth.signOut();
+            // After successful registration, the user remains logged in.
+            // The onAuthStateChanged listener will set the currentUser, triggering
+            // an automatic redirect to the agenda.
         } catch (error) {
             // Self-healing: if the user was created in Auth but Firestore failed,
             // delete the auth user to allow them to try again.

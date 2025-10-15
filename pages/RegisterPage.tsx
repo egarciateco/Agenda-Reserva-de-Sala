@@ -113,9 +113,9 @@ const RegisterPage: FC = () => {
         
         try {
             await register(userData, passwordForRegistration);
-            addToast('¡Cuenta creada exitosamente! Ya puedes iniciar sesión.', 'success');
+            addToast('¡Cuenta creada exitosamente! Redirigiendo a la agenda...', 'success');
             setFormData(getInitialState()); // Clear the form
-            navigate('/login', { replace: true });
+            // Navigation to /agenda is now handled automatically by PublicRoute
         } catch (err) {
             // The specific error (e.g., email in use) is shown by the context.
         } finally {
