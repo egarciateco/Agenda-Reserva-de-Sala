@@ -39,7 +39,6 @@ export const AppProvider: FC<AppProviderProps> = ({ children }) => {
     const [confirmation, setConfirmation] = useState<ConfirmationState>({ isOpen: false, message: '' });
     const onConfirmRef = useRef<(() => void) | null>(null);
     const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
-    const [isPwaInstallable, setIsPwaInstallable] = useState(false);
     const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
     const serviceWorkerRegistrationRef = useRef<ServiceWorkerRegistration | null>(null);
     const [isQrModalOpen, setIsQrModalOpen] = useState(false);
@@ -47,14 +46,14 @@ export const AppProvider: FC<AppProviderProps> = ({ children }) => {
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
     const pwaInstalledOnce = localStorage.getItem('pwaInstalled') === 'true';
 
+    // Derived state for PWA installability. This is more robust than a separate state.
+    const isPwaInstallable = !!deferredInstallPrompt && !isStandalone;
+
     // --- PWA & Service Worker Logic ---
     useEffect(() => {
         const handleInstallPrompt = (e: Event) => {
             e.preventDefault();
             setDeferredInstallPrompt(e);
-            if (!isStandalone) {
-               setIsPwaInstallable(true);
-            }
         };
         
         const handleSwUpdate = (event: Event) => {
@@ -70,7 +69,7 @@ export const AppProvider: FC<AppProviderProps> = ({ children }) => {
             window.removeEventListener('beforeinstallprompt', handleInstallPrompt);
             window.removeEventListener('sw-update', handleSwUpdate);
         };
-    }, [isStandalone]);
+    }, []);
 
     const triggerPwaInstall = () => {
         if (deferredInstallPrompt) {
@@ -80,7 +79,7 @@ export const AppProvider: FC<AppProviderProps> = ({ children }) => {
                     addToast('¡Aplicación instalada con éxito!', 'success');
                     localStorage.setItem('pwaInstalled', 'true');
                 }
-                setIsPwaInstallable(false);
+                // The prompt can only be used once. Clear it.
                 setDeferredInstallPrompt(null);
             });
         }

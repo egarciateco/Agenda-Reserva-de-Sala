@@ -2,6 +2,7 @@ const CACHE_NAME = 'telecom-reserva-cache-v25'; // Incremented version
 const urlsToCache = [
   '/',
   '/index.html',
+  '/manifest.json',
   '/bundle.js',
   'https://i.postimg.cc/bvr9syk6/Personal-logonuevo-1.png',
   'https://i.postimg.cc/3NMv9VMS/oficina-moderna-paredes-verdes-pisos-madera-asientos-comodos-191095-99743.avif',
