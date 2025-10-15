@@ -1,6 +1,5 @@
 import { FC, useState, useEffect } from 'react';
 import { useAppContext } from '../../hooks/useAppContext';
-import { DEFAULT_SHAREABLE_URL } from '../../constants';
 
 const QRCodeModal: FC = () => {
     const { isQrModalOpen, closeQrModal, addToast, siteImageUrl } = useAppContext();
@@ -8,50 +7,18 @@ const QRCodeModal: FC = () => {
     const [isSharing, setIsSharing] = useState(false);
 
     useEffect(() => {
-        // The share API is only available in secure contexts (HTTPS)
         if (navigator.share) {
             setIsWebShareSupported(true);
         }
     }, []);
 
-    // --- Robust Share URL Generation ---
-    // Use the reliable, clean base URL from constants.
-    const baseUrl = DEFAULT_SHAREABLE_URL;
-    // Add a unique timestamp as a cache-busting parameter.
-    // This forces services like WhatsApp to re-fetch the link metadata (og:image)
-    // instead of serving a stale, cached version that might be missing the image.
-    const shareUrl = `${baseUrl}?v=${Date.now()}`;
+    // Create a clean, shareable URL from the current window location.
+    // This ensures the link is always correct, even in different environments (dev, staging, prod).
+    // A timestamp is added as a "cache buster" to force services like WhatsApp to
+    // regenerate the link preview instead of using a stale, cached version.
+    const baseUrl = window.location.origin + window.location.pathname;
+    const shareUrl = `${baseUrl}?t=${Date.now()}`;
 
-
-    const handleCopyLink = async () => {
-        if (navigator.clipboard && window.isSecureContext) {
-            try {
-                await navigator.clipboard.writeText(shareUrl);
-                addToast('¡Enlace de la aplicación copiado!', 'success');
-                return;
-            } catch (err) {
-                console.error('La API de Clipboard falló, intentando método alternativo.', err);
-            }
-        }
-    
-        const textArea = document.createElement("textarea");
-        textArea.value = shareUrl;
-        textArea.style.position = 'fixed';
-        textArea.style.top = '-9999px';
-        textArea.style.left = '-9999px';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-    
-        try {
-            document.execCommand('copy');
-            addToast('¡Enlace de la aplicación copiado!', 'success');
-        } catch (err) {
-            addToast('No se pudo copiar el enlace.', 'error');
-        }
-    
-        document.body.removeChild(textArea);
-    };
 
     const handleNativeShare = async () => {
         const title = 'Reserva de Sala - TELECOM';
@@ -59,9 +26,6 @@ const QRCodeModal: FC = () => {
 
         setIsSharing(true);
         try {
-            // By sharing only the URL (with the cache buster), we allow apps like WhatsApp 
-            // to create a rich link preview. This preview uses the 'og:image' meta tag 
-            // from the app's HTML, making the entire preview card clickable.
             const shareData = {
                 title: title,
                 text: text,
@@ -72,7 +36,6 @@ const QRCodeModal: FC = () => {
 
         } catch (err) {
             const error = err as Error;
-            // Do not show an error if the user cancels the share action.
             if (error.name !== 'AbortError') {
                  addToast('No se pudo compartir la aplicación.', 'error');
                  console.error('Error sharing:', error);
@@ -86,7 +49,6 @@ const QRCodeModal: FC = () => {
         return null;
     }
 
-    // --- Links for Fallback Buttons ---
     const shareText = `Accede a la aplicación de reserva de salas de Telecom: ${shareUrl}`;
     const whatsappLink = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
     const emailSubject = 'App de Reserva de Salas - TELECOM';
@@ -112,7 +74,7 @@ const QRCodeModal: FC = () => {
         >
             <div 
                 className="relative bg-gray-800 p-8 rounded-xl shadow-2xl text-white w-full max-w-xs text-center transform transition-all animate-scale-in"
-                onClick={(e) => e.stopPropagation()} // Prevent closing modal when clicking inside
+                onClick={(e) => e.stopPropagation()}
             >
                 <button 
                     onClick={closeQrModal} 
@@ -151,16 +113,6 @@ const QRCodeModal: FC = () => {
                             </a>
                         </div>
                     )}
-
-                    <button
-                        onClick={handleCopyLink}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                        Copiar Enlace
-                    </button>
                 </div>
             </div>
              <style>{`
