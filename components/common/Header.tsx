@@ -3,14 +3,11 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../hooks/useAppContext';
 
 const Header: FC = () => {
-    const { currentUser, logoUrl, isPwaInstallable, isStandalone, pwaInstalledOnce, triggerPwaInstall, openQrModal } = useAppContext();
+    const { currentUser, logoUrl, isPwaInstallable, isStandalone, triggerPwaInstall, openQrModal } = useAppContext();
     const navigate = useNavigate();
     const location = useLocation();
 
     const isAdminPage = location.pathname.startsWith('/admin');
-    const showInstallButton = isPwaInstallable && !isStandalone;
-    const showInstalledBadge = isStandalone || (pwaInstalledOnce && !isPwaInstallable);
-
 
     return (
         <header className="bg-gray-900 bg-opacity-70 text-white p-4 shadow-md flex justify-between items-center z-20 relative">
@@ -28,22 +25,29 @@ const Header: FC = () => {
                         </Link>
                     )}
                     
-                    {showInstallButton && (
-                        <button onClick={triggerPwaInstall} className="header-button bg-blue-600 hover:bg-blue-700">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                            </svg>
-                            <span className="hidden md:inline">Instalar App</span>
-                        </button>
-                    )}
-                    
-                    {showInstalledBadge && (
+                    {isStandalone ? (
                          <div className="header-button bg-green-600 cursor-default">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                             </svg>
                             <span className="hidden md:inline">App Instalada</span>
                         </div>
+                    ) : (
+                        <button
+                            onClick={triggerPwaInstall}
+                            disabled={!isPwaInstallable}
+                            className={`header-button ${
+                                isPwaInstallable
+                                ? 'bg-blue-600 hover:bg-blue-700'
+                                : 'bg-gray-500 cursor-not-allowed text-gray-300'
+                            }`}
+                            title={isPwaInstallable ? 'Instalar la aplicación en tu dispositivo' : 'La instalación no está disponible en este momento'}
+                        >
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            <span className="hidden md:inline">Instalar App</span>
+                        </button>
                     )}
 
                     <button onClick={openQrModal} className="header-button bg-indigo-600 hover:bg-indigo-700">

@@ -174,7 +174,7 @@ const AgendaPage: FC = () => {
                         >
                             {salas.map(sala => <option key={sala.id} value={sala.id} className="bg-gray-800 text-white">{sala.name}</option>)}
                         </select>
-                        <div className="flex items-center gap-2 p-2 bg-cyan-900/70 rounded-md border border-cyan-700 w-full md:w-auto md:flex-grow h-11">
+                        <div className="flex items-center gap-2 p-2 bg-cyan-900/70 rounded-md border border-cyan-700 w-full md:w-max h-11">
                             <img src={siteImageUrl} alt="Ubicación de sala" className="h-8 w-8 object-cover rounded flex-shrink-0"/>
                             <p className="text-sm text-gray-300">{selectedSala?.address || 'Sin domicilio'}</p>
                         </div>
