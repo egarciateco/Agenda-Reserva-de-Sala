@@ -50,4 +50,4 @@ export const DEFAULT_HOME_BACKGROUND_URL = 'https://images.unsplash.com/photo-15
 export const DEFAULT_SITE_IMAGE_URL = 'https://i.postimg.cc/Hss2rxB2/IMAGEN-SITE.png';
 // FIX: Replace the non-crawlable developer URL with a clean, public-facing URL.
 // This is essential for social media platforms (like WhatsApp) to generate a rich link preview.
-export const DEFAULT_SHAREABLE_URL = 'https://telecom-reserva-sala.web.app';
+export const DEFAULT_SHAREABLE_URL = 'https://aistudio.google.com/apps/drive/11d6Ipe9A0KvKkiOhLVz-7Spg1UbocG-I';

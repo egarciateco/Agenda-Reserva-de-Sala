@@ -1,5 +1,6 @@
 import { FC, useState, useEffect } from 'react';
 import { useAppContext } from '../../hooks/useAppContext';
+import { DEFAULT_SHAREABLE_URL } from '../../constants';
 
 const QRCodeModal: FC = () => {
     const { isQrModalOpen, closeQrModal, addToast, siteImageUrl } = useAppContext();
@@ -12,12 +13,10 @@ const QRCodeModal: FC = () => {
         }
     }, []);
 
-    // Create a clean, shareable URL from the current window location.
-    // This ensures the link is always correct, even in different environments (dev, staging, prod).
+    // Use the fixed shareable URL from constants to ensure consistency.
     // A timestamp is added as a "cache buster" to force services like WhatsApp to
     // regenerate the link preview instead of using a stale, cached version.
-    const baseUrl = window.location.origin + window.location.pathname;
-    const shareUrl = `${baseUrl}?t=${Date.now()}`;
+    const shareUrl = `${DEFAULT_SHAREABLE_URL}?t=${Date.now()}`;
 
 
     const handleNativeShare = async () => {
