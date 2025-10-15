@@ -68,7 +68,7 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
     const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
     const [isManifestReady, setIsManifestReady] = useState(false);
-    const isPwaInstallable = !!deferredInstallPrompt && isManifestReady && !isStandalone;
+    const isPwaInstallable = !!deferredInstallPrompt && !isStandalone;
     const [pwaInstalledOnce, setPwaInstalledOnce] = useState(() => {
         try {
             return localStorage.getItem('pwaInstalled') === 'true';
