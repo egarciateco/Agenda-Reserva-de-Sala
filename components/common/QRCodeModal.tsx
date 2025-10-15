@@ -1,9 +1,17 @@
-import { FC } from 'react';
+import { FC, useState, useEffect } from 'react';
 import { useAppContext } from '../../hooks/useAppContext';
 import { DEFAULT_SHAREABLE_URL } from '../../constants';
 
 const QRCodeModal: FC = () => {
     const { isQrModalOpen, closeQrModal, addToast } = useAppContext();
+    const [isWebShareSupported, setIsWebShareSupported] = useState(false);
+    const [isSharing, setIsSharing] = useState(false);
+
+    useEffect(() => {
+        if (navigator.share) {
+            setIsWebShareSupported(true);
+        }
+    }, []);
 
     const handleCopyLink = async () => {
         const shareUrl = DEFAULT_SHAREABLE_URL;
@@ -37,11 +45,59 @@ const QRCodeModal: FC = () => {
         document.body.removeChild(textArea);
     };
 
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(DEFAULT_SHAREABLE_URL)}`;
+
+    const handleNativeShare = async () => {
+        const shareUrl = DEFAULT_SHAREABLE_URL;
+        const title = 'Reserva de Sala - TELECOM';
+        const text = 'Accede a la aplicación de reserva de salas de Telecom escaneando este código QR o usando el enlace.';
+        
+        setIsSharing(true);
+        try {
+            const response = await fetch(qrCodeUrl);
+            if (!response.ok) throw new Error('Network response was not ok');
+            
+            const blob = await response.blob();
+            const file = new File([blob], 'telecom-reserva-qr.png', { type: 'image/png' });
+
+            const shareData = { title, text, url: shareUrl, files: [file] };
+
+            if (navigator.canShare && navigator.canShare(shareData)) {
+                await navigator.share(shareData);
+            } else {
+                await navigator.share({ title, text, url: shareUrl });
+            }
+        } catch (err) {
+            const error = err as Error;
+            // No mostrar error si el usuario cancela la acción de compartir.
+            if (error.name !== 'AbortError') {
+                 addToast('No se pudo compartir la aplicación.', 'error');
+                 console.error('Error sharing:', error);
+            }
+        } finally {
+            setIsSharing(false);
+        }
+    };
+    
     if (!isQrModalOpen) {
         return null;
     }
 
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(DEFAULT_SHAREABLE_URL)}`;
+    // --- Links for Fallback Buttons ---
+    const shareText = `Accede a la aplicación de reserva de salas de Telecom: ${DEFAULT_SHAREABLE_URL}`;
+    const whatsappLink = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+    const emailSubject = 'App de Reserva de Salas - TELECOM';
+    const emailBody = `
+        <p>Hola,</p>
+        <p>Te comparto el acceso a la aplicación de reserva de salas de Telecom.</p>
+        <p>Puedes escanear el código QR o hacer clic en el enlace de abajo.</p>
+        <br>
+        <img src="${qrCodeUrl}" alt="Código QR" width="150" height="150" />
+        <br><br>
+        <a href="${DEFAULT_SHAREABLE_URL}">Abrir la aplicación</a>
+    `;
+    const mailtoLink = `mailto:?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+
 
     return (
         <div 
@@ -69,7 +125,27 @@ const QRCodeModal: FC = () => {
                     <img src={qrCodeUrl} alt="Código QR de la aplicación" width="200" height="200" />
                 </div>
 
-                <div className="mt-6">
+                <div className="mt-6 space-y-3">
+                    {isWebShareSupported ? (
+                        <button
+                            onClick={handleNativeShare}
+                            disabled={isSharing}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:bg-green-800"
+                        >
+                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" /></svg>
+                             {isSharing ? 'Compartiendo...' : 'Compartir App...'}
+                        </button>
+                    ) : (
+                         <div className="flex gap-3">
+                            <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="w-full flex items-center justify-center gap-2 px-4 py-3 text-xs font-bold text-white bg-[#25D366] hover:bg-[#1EAE54] rounded-lg transition-colors">
+                                WhatsApp
+                            </a>
+                            <a href={mailtoLink} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-xs font-bold text-white bg-gray-600 hover:bg-gray-500 rounded-lg transition-colors">
+                                Email
+                            </a>
+                        </div>
+                    )}
+
                     <button
                         onClick={handleCopyLink}
                         className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
