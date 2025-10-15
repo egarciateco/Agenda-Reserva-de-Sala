@@ -174,12 +174,12 @@ const AgendaPage: FC = () => {
                         >
                             {salas.map(sala => <option key={sala.id} value={sala.id} className="bg-gray-800 text-white">{sala.name}</option>)}
                         </select>
-                        <div className="flex items-center gap-2 p-2 bg-cyan-900/70 rounded-md border border-cyan-700 w-full md:w-max h-11">
-                            <img src={siteImageUrl} alt="Ubicación de sala" className="h-8 w-8 object-cover rounded flex-shrink-0"/>
+                        <div className="flex items-center p-2 bg-cyan-900/70 rounded-md border border-cyan-700 w-full md:w-max h-11">
                             <p className="text-sm text-gray-300">{selectedSala?.address || 'Sin domicilio'}</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-4 shrink-0">
+                        <img src={siteImageUrl} alt="Icono de la aplicación" className="h-14 w-14 object-cover rounded-lg"/>
                         <button onClick={handlePrevWeek} className="p-2 bg-gray-700 hover:bg-gray-600 rounded-md text-white">{'<'}</button>
                         <button onClick={handleToday} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-white text-sm">Hoy</button>
                         <button onClick={handleNextWeek} className="p-2 bg-gray-700 hover:bg-gray-600 rounded-md text-white">{'>'}</button>

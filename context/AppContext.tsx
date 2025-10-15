@@ -52,6 +52,7 @@ export const AppProvider: FC<AppProviderProps> = ({ children }) => {
     // --- PWA & Service Worker Logic ---
     useEffect(() => {
         const handleInstallPrompt = (e: Event) => {
+            console.log('✅ Evento "beforeinstallprompt" detectado. La app es instalable.');
             e.preventDefault();
             setDeferredInstallPrompt(e);
         };
