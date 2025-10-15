@@ -10,6 +10,7 @@ import { ToastMessage } from './types';
 import HomePage from './pages/HomePage';
 import LogoutPage from './pages/LogoutPage';
 import InstallPWAButton from './components/common/InstallPWAButton';
+import QRCodeModal from './components/common/QRCodeModal';
 
 const Toast: FC<{ toast: ToastMessage }> = ({ toast }) => {
     const { removeToast } = useAppContext();
@@ -161,6 +162,7 @@ const AppContent: FC = () => {
             <ToastContainer />
             <ConfirmationModal />
             <InstallPWAButton />
+            <QRCodeModal />
         </div>
     );
 };

@@ -1,71 +1,11 @@
 import { FC } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../hooks/useAppContext';
-import { DEFAULT_SHAREABLE_URL } from '../../constants';
 
 const Header: FC = () => {
-    const { currentUser, logoUrl, addToast, isPwaInstallable, isStandalone, pwaInstalledOnce, triggerPwaInstall } = useAppContext();
+    const { currentUser, logoUrl, isPwaInstallable, isStandalone, pwaInstalledOnce, triggerPwaInstall, openQrModal } = useAppContext();
     const navigate = useNavigate();
     const location = useLocation();
-
-    const handleShare = async () => {
-        const shareUrl = DEFAULT_SHAREABLE_URL;
-        const shareData = {
-            title: 'Reserva de Sala - TELECOM',
-            text: 'Aplicación para la reserva de salas de reuniones en Telecom.',
-            url: shareUrl,
-        };
-    
-        // 1. Modern Web Share API (Primary for Mobile)
-        if (navigator.share) {
-            try {
-                await navigator.share(shareData);
-                return; // Success, exit function
-            } catch (err) {
-                const errorString = String(err);
-                if (!errorString.includes('AbortError')) {
-                    console.error('Error con la API de Web Share:', err);
-                }
-                // If sharing fails for a reason other than user cancellation, we can proceed to fallback.
-            }
-        }
-    
-        // 2. Modern Clipboard API (Primary for Desktop, requires secure context)
-        if (navigator.clipboard && window.isSecureContext) {
-            try {
-                await navigator.clipboard.writeText(shareUrl);
-                addToast('¡Enlace de la aplicación copiado al portapapeles!', 'success');
-                return; // Success, exit function
-            } catch (err) {
-                console.error('La API de Clipboard falló, intentando método alternativo.', err);
-                // Fallthrough to the legacy method if this fails
-            }
-        }
-    
-        // 3. Legacy `document.execCommand` Fallback (for HTTP or older browsers)
-        const textArea = document.createElement("textarea");
-        textArea.value = shareUrl;
-        textArea.style.position = 'fixed';
-        textArea.style.top = '-9999px';
-        textArea.style.left = '-9999px';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-    
-        try {
-            const successful = document.execCommand('copy');
-            if (successful) {
-                addToast('¡Enlace de la aplicación copiado al portapapeles!', 'success');
-            } else {
-                addToast('No se pudo copiar el enlace automáticamente.', 'error');
-            }
-        } catch (err) {
-            console.error('Fallback `execCommand` falló:', err);
-            addToast('No se pudo copiar el enlace.', 'error');
-        }
-    
-        document.body.removeChild(textArea);
-    };
 
     const isAdminPage = location.pathname.startsWith('/admin');
     const showInstallButton = isPwaInstallable && !isStandalone;
@@ -106,7 +46,7 @@ const Header: FC = () => {
                         </div>
                     )}
 
-                    <button onClick={handleShare} className="header-button bg-indigo-600 hover:bg-indigo-700">
+                    <button onClick={openQrModal} className="header-button bg-indigo-600 hover:bg-indigo-700">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                            <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
                         </svg>

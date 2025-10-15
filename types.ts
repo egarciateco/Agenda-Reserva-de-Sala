@@ -105,4 +105,7 @@ export interface AppContextType {
     handleCancel: () => void;
     isUpdateAvailable: boolean;
     applyUpdate: () => void;
+    isQrModalOpen: boolean;
+    openQrModal: () => void;
+    closeQrModal: () => void;
 }

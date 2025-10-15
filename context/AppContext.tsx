@@ -64,6 +64,11 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
     const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
     const [waitingWorker, setWaitingWorker] = useState<ServiceWorkerRegistration | null>(null);
 
+    // --- QR Modal State ---
+    const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+    const openQrModal = () => setIsQrModalOpen(true);
+    const closeQrModal = () => setIsQrModalOpen(false);
+
     // --- PWA Installation State ---
     const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
@@ -428,7 +433,7 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
     };
 
     const value = {
-        currentUser, users, sectors, roles, salas, bookings, toasts, confirmation, isLoading, isPwaInstallable, isStandalone, pwaInstalledOnce, isUpdateAvailable,
+        currentUser, users, sectors, roles, salas, bookings, toasts, confirmation, isLoading, isPwaInstallable, isStandalone, pwaInstalledOnce, isUpdateAvailable, isQrModalOpen, openQrModal, closeQrModal,
         logoUrl: settings.logoUrl, backgroundImageUrl: settings.backgroundImageUrl, homeBackgroundImageUrl: settings.homeBackgroundImageUrl, siteImageUrl: settings.siteImageUrl, adminSecretCode: settings.adminSecretCode, lastBookingDuration: settings.lastBookingDuration || 1,
         triggerPwaInstall, login, logout, register, addBooking, deleteBooking, updateBooking, updateUser, deleteUser, addSector, updateSector, deleteSector, addRole, updateRole, deleteRole, addSala, updateSala, deleteSala, setSettings, addToast, removeToast, showConfirmation, handleConfirm, handleCancel, applyUpdate,
     };
