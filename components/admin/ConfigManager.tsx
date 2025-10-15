@@ -64,8 +64,6 @@ const ConfigManager: FC = () => {
         }
     };
 
-    const reservaSalaQrUrl = 'https://i.postimg.cc/85q3g1Vp/qr-reserva-sala.png';
-
     return (
         <div>
             <h2 className="text-xl font-bold mb-4 text-white">Configuración Visual y de Acceso</h2>
@@ -75,7 +73,6 @@ const ConfigManager: FC = () => {
                 <StaticImageDisplay label="Imagen de Fondo - General (Fija)" value={backgroundImageUrl} />
                 <StaticImageDisplay label="Imagen de Fondo - Página de Inicio (Fija)" value={homeBackgroundImageUrl} />
                 <StaticImageDisplay label="Imagen Site - Ubicación en Agenda (Fija)" value={siteImageUrl} />
-                <StaticImageDisplay label="Reserva Sala" value={reservaSalaQrUrl} />
 
                 <StaticUrlDisplay label="URL Base de la Aplicación" value={DEFAULT_SHAREABLE_URL} addToast={addToast} />
 

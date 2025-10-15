@@ -3,7 +3,7 @@ import { useAppContext } from '../../hooks/useAppContext';
 import { DEFAULT_SHAREABLE_URL } from '../../constants';
 
 const QRCodeModal: FC = () => {
-    const { isQrModalOpen, closeQrModal, addToast } = useAppContext();
+    const { isQrModalOpen, closeQrModal, addToast, siteImageUrl } = useAppContext();
     const [isWebShareSupported, setIsWebShareSupported] = useState(false);
     const [isSharing, setIsSharing] = useState(false);
 
@@ -50,21 +50,22 @@ const QRCodeModal: FC = () => {
     const handleNativeShare = async () => {
         const shareUrl = DEFAULT_SHAREABLE_URL;
         const title = 'Reserva de Sala - TELECOM';
-        const text = 'Accede a la aplicación de reserva de salas de Telecom escaneando este código QR o usando el enlace.';
+        const text = 'Accede a la aplicación de reserva de salas de Telecom usando el enlace.';
         
         setIsSharing(true);
         try {
-            const response = await fetch(qrCodeUrl);
+            const response = await fetch(siteImageUrl);
             if (!response.ok) throw new Error('Network response was not ok');
             
             const blob = await response.blob();
-            const file = new File([blob], 'telecom-reserva-qr.png', { type: 'image/png' });
+            const file = new File([blob], 'telecom-reserva-app.png', { type: blob.type || 'image/png' });
 
             const shareData = { title, text, url: shareUrl, files: [file] };
 
             if (navigator.canShare && navigator.canShare(shareData)) {
                 await navigator.share(shareData);
             } else {
+                // Fallback for when files can't be shared
                 await navigator.share({ title, text, url: shareUrl });
             }
         } catch (err) {
@@ -90,9 +91,11 @@ const QRCodeModal: FC = () => {
     const emailBody = `
         <p>Hola,</p>
         <p>Te comparto el acceso a la aplicación de reserva de salas de Telecom.</p>
-        <p>Puedes escanear el código QR o hacer clic en el enlace de abajo.</p>
+        <p>Puedes hacer clic en la imagen o en el enlace de abajo para acceder.</p>
         <br>
-        <img src="${qrCodeUrl}" alt="Código QR" width="150" height="150" />
+        <a href="${DEFAULT_SHAREABLE_URL}">
+            <img src="${siteImageUrl}" alt="Reserva de Sala - TELECOM" style="width: 150px; height: auto;" />
+        </a>
         <br><br>
         <a href="${DEFAULT_SHAREABLE_URL}">Abrir la aplicación</a>
     `;
