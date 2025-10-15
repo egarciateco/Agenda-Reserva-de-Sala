@@ -45,8 +45,6 @@ const QRCodeModal: FC = () => {
         document.body.removeChild(textArea);
     };
 
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(DEFAULT_SHAREABLE_URL)}`;
-
     const handleNativeShare = async () => {
         const shareUrl = DEFAULT_SHAREABLE_URL;
         const title = 'Reserva de Sala - TELECOM';
@@ -122,10 +120,10 @@ const QRCodeModal: FC = () => {
                 </button>
                 
                 <h3 className="text-xl font-bold mb-4">Compartir Aplicación</h3>
-                <p className="text-gray-300 text-sm mb-6">Escanea el código para abrir la app en otro dispositivo.</p>
+                <p className="text-gray-300 text-sm mb-6">Usa las siguientes opciones para enviar un enlace a la aplicación.</p>
                 
                 <div className="bg-white p-4 rounded-lg inline-block">
-                    <img src={qrCodeUrl} alt="Código QR de la aplicación" width="200" height="200" />
+                    <img src={siteImageUrl} alt="Icono de la aplicación" className="w-[200px] h-[200px] object-contain" />
                 </div>
 
                 <div className="mt-6 space-y-3">
