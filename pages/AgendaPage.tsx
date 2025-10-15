@@ -170,13 +170,13 @@ const AgendaPage: FC = () => {
                         <select
                             value={selectedSalaId}
                             onChange={(e) => setSelectedSalaId(e.target.value)}
-                            className="bg-cyan-900/70 border border-cyan-700 text-white rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-cyan-500 w-full md:w-56"
+                            className="bg-cyan-900/70 border border-cyan-700 text-white rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-cyan-500 w-full md:w-64 text-sm h-11"
                         >
                             {salas.map(sala => <option key={sala.id} value={sala.id} className="bg-gray-800 text-white">{sala.name}</option>)}
                         </select>
-                        <div className="flex items-center gap-2 p-2 bg-cyan-900/70 rounded-md border border-cyan-700 w-full md:w-auto md:flex-grow">
+                        <div className="flex items-center gap-2 p-2 bg-cyan-900/70 rounded-md border border-cyan-700 w-full md:w-auto md:flex-grow h-11">
                             <img src={siteImageUrl} alt="Ubicación de sala" className="h-8 w-8 object-cover rounded flex-shrink-0"/>
-                            <p className="text-xs text-gray-300">{selectedSala?.address || 'Sin domicilio'}</p>
+                            <p className="text-sm text-gray-300">{selectedSala?.address || 'Sin domicilio'}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
