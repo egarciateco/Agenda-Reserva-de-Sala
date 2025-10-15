@@ -72,7 +72,6 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
     // --- PWA Installation State ---
     const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-    const [isManifestReady, setIsManifestReady] = useState(false);
     const isPwaInstallable = !!deferredInstallPrompt && !isStandalone;
     const [pwaInstalledOnce, setPwaInstalledOnce] = useState(() => {
         try {
@@ -138,60 +137,6 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
         window.addEventListener('sw-update', handleUpdate);
         return () => window.removeEventListener('sw-update', handleUpdate);
     }, []);
-
-     // --- Dynamic Manifest Injection ---
-    useEffect(() => {
-        if (isLoading || !settings.siteImageUrl) {
-            return;
-        }
-
-        // --- Manifest ---
-        const manifest = {
-            short_name: "Reserva Telecom",
-            name: "Reserva de Sala de TELECOM",
-            description: "La presente aplicación funciona como agenda de reservas para uso de salas de reuniones dentro de las bases de Telecom.",
-            icons: [
-                { src: settings.siteImageUrl, type: "image/png", sizes: "192x192", purpose: "any maskable" },
-                { src: settings.siteImageUrl, type: "image/png", sizes: "512x512", purpose: "any maskable" }
-            ],
-            start_url: ".",
-            display: "standalone",
-            theme_color: "#2563eb",
-            background_color: "#111827"
-        };
-        
-        const getMimeType = (url: string) => {
-            const lowerUrl = url.toLowerCase();
-            if (lowerUrl.endsWith('.png')) return 'image/png';
-            if (lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg')) return 'image/jpeg';
-            if (lowerUrl.endsWith('.webp')) return 'image/webp';
-            return 'image/png';
-        };
-
-        manifest.icons.forEach(icon => { icon.type = getMimeType(settings.siteImageUrl); });
-
-        const manifestString = JSON.stringify(manifest);
-        const manifestBlob = new Blob([manifestString], { type: 'application/json' });
-        const manifestUrl = URL.createObjectURL(manifestBlob);
-
-        const oldLink = document.querySelector('link[rel="manifest"]');
-        if (oldLink) { oldLink.remove(); }
-        
-        const link = document.createElement('link');
-        link.rel = 'manifest';
-        link.href = manifestUrl;
-        document.head.appendChild(link);
-        
-        setIsManifestReady(true);
-        
-        // Social meta tags are now handled statically in index.html for crawler reliability.
-
-        return () => {
-          setIsManifestReady(false);
-          if (link.parentElement) { document.head.removeChild(link); }
-          URL.revokeObjectURL(manifestUrl);
-        };
-    }, [settings.siteImageUrl, isLoading]);
 
     const applyUpdate = () => {
         if (waitingWorker && waitingWorker.waiting) {

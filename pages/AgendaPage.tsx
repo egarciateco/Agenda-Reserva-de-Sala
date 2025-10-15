@@ -165,17 +165,21 @@ const AgendaPage: FC = () => {
             <Header />
             <main className="flex-1 p-4 md:p-6 overflow-auto bg-gray-800 bg-opacity-50">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                    <div className="flex flex-wrap items-center justify-center md:justify-start gap-4">
-                        <h1 className="text-2xl md:text-3xl font-bold text-white w-full md:w-auto text-center md:text-left">Agenda de Sala</h1>
+                    <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 flex-grow">
+                        <h1 className="text-2xl md:text-3xl font-bold text-white w-full md:w-auto text-center md:text-left shrink-0">Agenda de Sala</h1>
                         <select
                             value={selectedSalaId}
                             onChange={(e) => setSelectedSalaId(e.target.value)}
-                            className="bg-cyan-900/70 border border-cyan-700 text-white rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                            className="bg-cyan-900/70 border border-cyan-700 text-white rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-cyan-500 w-full md:w-56"
                         >
                             {salas.map(sala => <option key={sala.id} value={sala.id} className="bg-gray-800 text-white">{sala.name}</option>)}
                         </select>
+                        <div className="flex items-center gap-2 p-2 bg-cyan-900/70 rounded-md border border-cyan-700 w-full md:w-auto md:flex-grow">
+                            <img src={siteImageUrl} alt="Ubicación de sala" className="h-8 w-8 object-cover rounded flex-shrink-0"/>
+                            <p className="text-xs text-gray-300">{selectedSala?.address || 'Sin domicilio'}</p>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                         <button onClick={handlePrevWeek} className="p-2 bg-gray-700 hover:bg-gray-600 rounded-md text-white">{'<'}</button>
                         <button onClick={handleToday} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-white text-sm">Hoy</button>
                         <button onClick={handleNextWeek} className="p-2 bg-gray-700 hover:bg-gray-600 rounded-md text-white">{'>'}</button>
@@ -186,10 +190,6 @@ const AgendaPage: FC = () => {
                     <span className="text-lg text-white font-semibold">
                        Semana del {formatDate(weekStartDate)} al {formatDate(weekDates[weekDates.length - 1])}
                     </span>
-                    <div className="flex items-center gap-2 p-2 bg-cyan-900/70 rounded-md border border-cyan-700">
-                        <img src={siteImageUrl} alt="Ubicación de sala" className="h-8 w-8 object-cover rounded"/>
-                        <p className="text-xs text-gray-300">{selectedSala?.address || 'Sin domicilio'}</p>
-                    </div>
                 </div>
 
                 <div className="overflow-x-auto bg-gray-900 bg-opacity-60 rounded-lg shadow-lg">
