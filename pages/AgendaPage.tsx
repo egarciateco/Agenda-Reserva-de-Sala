@@ -218,13 +218,16 @@ const AgendaPage: FC = () => {
                                             if (isFirstSlotOfBooking) {
                                                 const isCurrentUserBooking = booking.userId === currentUser?.id;
                                                 const isAdmin = currentUser?.role === 'Administrador';
+                                                const bookingUser = userMap.get(booking.userId);
+                                                const isBookingUserAdmin = bookingUser?.role === 'Administrador';
+                                                const sectorToDisplay = isBookingUserAdmin ? 'Facilities & Servicios' : formatUserText(bookingUser?.sector || 'N/A');
                                                 
                                                 return (
-                                                    <td key={index} rowSpan={booking.duration} className={`p-2 border-r border-gray-700 align-top text-xs ${isCurrentUserBooking ? 'bg-green-800/50' : 'bg-red-800/50'}`}>
+                                                    <td key={index} rowSpan={booking.duration} className="p-2 border-r border-gray-700 align-top text-xs bg-red-800/50">
                                                         <div className="h-full flex flex-col justify-between p-1 rounded">
                                                             <div>
                                                                 <p className="font-bold">{formatUserText(booking.user?.lastName || '')}, {formatUserText(booking.user?.firstName || '')}</p>
-                                                                <p className="text-gray-300">{formatUserText(booking.user?.sector || 'N/A')}</p>
+                                                                <p className="text-gray-300">{sectorToDisplay}</p>
                                                             </div>
                                                             {(isCurrentUserBooking || isAdmin) && !isPast && (
                                                                 <button onClick={() => handleDeleteBooking(booking)} className="text-red-300 hover:text-red-200 text-xs mt-2 self-end">
@@ -243,7 +246,7 @@ const AgendaPage: FC = () => {
                                                 {isPast ? (
                                                      <span className="text-gray-600 text-sm">-</span>
                                                 ) : (
-                                                     <button onClick={() => handleOpenBookingModal(date, time)} className="w-full h-full text-xs text-blue-300 hover:bg-blue-500 hover:text-white rounded transition-colors py-2">
+                                                     <button onClick={() => handleOpenBookingModal(date, time)} className="w-full h-full text-xs text-green-300 bg-green-800/20 hover:bg-green-700 hover:text-white rounded transition-colors py-2">
                                                         Disponible
                                                     </button>
                                                 )}

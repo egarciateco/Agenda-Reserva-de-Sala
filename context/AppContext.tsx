@@ -86,20 +86,14 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
     // --- PWA Install Logic (Robust Version) ---
     useEffect(() => {
-        const checkInstallPrompt = () => {
-            if ((window as any).deferredInstallPrompt) {
-                setDeferredInstallPrompt((window as any).deferredInstallPrompt);
-            }
+        const handler = (e: Event) => {
+            e.preventDefault();
+            setDeferredInstallPrompt(e);
         };
-        
-        // Check immediately in case the event fired before this component mounted.
-        checkInstallPrompt();
-
-        // Also listen for the event in case it fires later.
-        window.addEventListener('pwa-install-ready', checkInstallPrompt);
-        
-        return () => window.removeEventListener('pwa-install-ready', checkInstallPrompt);
+        window.addEventListener('beforeinstallprompt', handler);
+        return () => window.removeEventListener('beforeinstallprompt', handler);
     }, []);
+
 
     const triggerPwaInstall = () => {
         if (deferredInstallPrompt) {
