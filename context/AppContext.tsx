@@ -1,53 +1,345 @@
-// --- Configuración de EmailJS ---
-// Las credenciales se cargan desde las Variables de Entorno de Netlify durante el despliegue.
-// Esto es más seguro y flexible que tenerlas directamente en el código.
+import { createContext, useState, useEffect, FC, ReactNode, useRef } from 'react';
+import { 
+    AppContextType, User, Sector, Role, Sala, Booking, AppSettings, 
+    ToastMessage, ConfirmationState, ConfirmationOptions 
+} from '../types';
+import { auth, db } from '../utils/firebase';
+import { getFirebaseErrorMessage } from '../utils/helpers';
+import emailjs from '@emailjs/browser';
+import { 
+    INITIAL_ADMIN_SECRET_CODE, INITIAL_SALAS, INITIAL_ROLES, INITIAL_SECTORS,
+    DEFAULT_LOGO_URL, DEFAULT_BACKGROUND_URL, DEFAULT_HOME_BACKGROUND_URL, DEFAULT_SITE_IMAGE_URL,
+    EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, EMAILJS_PUBLIC_KEY
+} from '../constants';
 
-export const EMAILJS_SERVICE_ID = process.env.EMAILJS_SERVICE_ID || '';
-export const EMAILJS_TEMPLATE_ID = process.env.EMAILJS_TEMPLATE_ID || '';
-export const EMAILJS_PUBLIC_KEY = process.env.EMAILJS_PUBLIC_KEY || '';
+export const AppContext = createContext<AppContextType | undefined>(undefined);
+
+interface AppProviderProps {
+    children: ReactNode;
+}
+
+export const AppProvider: FC<AppProviderProps> = ({ children }) => {
+    // STATE DECLARATIONS
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [users, setUsers] = useState<User[]>([]);
+    const [sectors, setSectors] = useState<Sector[]>([]);
+    const [roles, setRoles] = useState<Role[]>([]);
+    const [salas, setSalas] = useState<Sala[]>([]);
+    const [bookings, setBookings] = useState<Booking[]>([]);
+    const [settings, setSettings] = useState<AppSettings>({
+        logoUrl: DEFAULT_LOGO_URL,
+        backgroundImageUrl: DEFAULT_BACKGROUND_URL,
+        homeBackgroundImageUrl: DEFAULT_HOME_BACKGROUND_URL,
+        siteImageUrl: DEFAULT_SITE_IMAGE_URL,
+        adminSecretCode: INITIAL_ADMIN_SECRET_CODE,
+        lastBookingDuration: 1,
+    });
+    const [toasts, setToasts] = useState<ToastMessage[]>([]);
+    const [confirmation, setConfirmation] = useState<ConfirmationState>({ isOpen: false, message: '' });
+    const onConfirmRef = useRef<(() => void) | null>(null);
+    const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
+    const [isPwaInstallable, setIsPwaInstallable] = useState(false);
+    const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
+    const serviceWorkerRegistrationRef = useRef<ServiceWorkerRegistration | null>(null);
+    const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+    
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    const pwaInstalledOnce = localStorage.getItem('pwaInstalled') === 'true';
+
+    // --- PWA & Service Worker Logic ---
+    useEffect(() => {
+        const handleInstallPrompt = (e: Event) => {
+            e.preventDefault();
+            setDeferredInstallPrompt(e);
+            if (!isStandalone) {
+               setIsPwaInstallable(true);
+            }
+        };
+        
+        const handleSwUpdate = (event: Event) => {
+            const registration = (event as CustomEvent).detail;
+            serviceWorkerRegistrationRef.current = registration;
+            setIsUpdateAvailable(true);
+        };
+
+        window.addEventListener('beforeinstallprompt', handleInstallPrompt);
+        window.addEventListener('sw-update', handleSwUpdate);
+        
+        return () => {
+            window.removeEventListener('beforeinstallprompt', handleInstallPrompt);
+            window.removeEventListener('sw-update', handleSwUpdate);
+        };
+    }, [isStandalone]);
+
+    const triggerPwaInstall = () => {
+        if (deferredInstallPrompt) {
+            deferredInstallPrompt.prompt();
+            deferredInstallPrompt.userChoice.then((choiceResult: { outcome: string }) => {
+                if (choiceResult.outcome === 'accepted') {
+                    addToast('¡Aplicación instalada con éxito!', 'success');
+                    localStorage.setItem('pwaInstalled', 'true');
+                }
+                setIsPwaInstallable(false);
+                setDeferredInstallPrompt(null);
+            });
+        }
+    };
+    
+    const applyUpdate = () => {
+        if (serviceWorkerRegistrationRef.current?.waiting) {
+            serviceWorkerRegistrationRef.current.waiting.postMessage({ type: 'SKIP_WAITING' });
+            setIsUpdateAvailable(false);
+            // The page will reload once the new service worker is active.
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (!refreshing) {
+                    window.location.reload();
+                    refreshing = true;
+                }
+            });
+        }
+    };
+
+    // --- Authentication ---
+    useEffect(() => {
+        const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+            if (firebaseUser) {
+                const userDoc = await db.collection('users').doc(firebaseUser.uid).get();
+                if (userDoc.exists) {
+                    setCurrentUser({ id: userDoc.id, ...userDoc.data() } as User);
+                } else {
+                    // User exists in auth but not in Firestore, likely an error state.
+                    // Log them out to prevent being stuck in a broken state.
+                    await auth.signOut();
+                    setCurrentUser(null);
+                }
+            } else {
+                setCurrentUser(null);
+            }
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    // --- Firestore Data Fetching ---
+    useEffect(() => {
+        const collections = ['users', 'sectors', 'roles', 'salas', 'bookings'];
+        const setters: any = {
+            users: setUsers,
+            sectors: setSectors,
+            roles: setRoles,
+            salas: setSalas,
+            bookings: setBookings,
+        };
+        const unsubscribes = collections.map(col =>
+            db.collection(col).onSnapshot(snapshot => {
+                const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setters[col](data);
+            }, error => {
+                console.error(`Error fetching ${col}:`, error);
+                addToast(`No se pudo cargar ${col}. La aplicación podría mostrar datos desactualizados.`, 'error');
+            })
+        );
+        
+        // Settings listener
+        const unsubSettings = db.collection('settings').doc('config').onSnapshot(doc => {
+            if (doc.exists) {
+                setSettings(prev => ({ ...prev, ...doc.data() }));
+            }
+        });
+        unsubscribes.push(unsubSettings);
+
+        return () => unsubscribes.forEach(unsub => unsub());
+    }, []);
+
+    // --- Functions ---
+    const addToast = (message: string, type: 'success' | 'error') => {
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, message, type }]);
+    };
+    const removeToast = (id: number) => setToasts(prev => prev.filter(t => t.id !== id));
+
+    const showConfirmation = (message: string, onConfirm: () => void, options: ConfirmationOptions = {}) => {
+        onConfirmRef.current = onConfirm;
+        setConfirmation({ isOpen: true, message, ...options });
+    };
+    const handleConfirm = () => {
+        onConfirmRef.current?.();
+        setConfirmation({ isOpen: false, message: '' });
+    };
+    const handleCancel = () => setConfirmation({ isOpen: false, message: '' });
+
+    const login = async (email: string, pass: string) => {
+        try {
+            await auth.signInWithEmailAndPassword(email, pass);
+        } catch (error) {
+            addToast(getFirebaseErrorMessage(error), 'error');
+            throw error;
+        }
+    };
+    const logout = () => auth.signOut();
+
+    const register = async (userData: Omit<User, 'id'>, pass: string) => {
+        try {
+            const userCredential = await auth.createUserWithEmailAndPassword(userData.email, pass);
+            if (userCredential.user) {
+                await db.collection('users').doc(userCredential.user.uid).set(userData);
+            }
+        } catch (error) {
+            addToast(getFirebaseErrorMessage(error), 'error');
+            throw error;
+        }
+    };
+    
+    // Generic function to add a document to a collection
+    const addDocument = async (collection: string, data: object, successMsg: string) => {
+        try {
+            await db.collection(collection).add(data);
+            addToast(successMsg, 'success');
+        } catch (error) {
+            addToast(getFirebaseErrorMessage(error), 'error');
+            throw error;
+        }
+    };
+
+    // Generic function to update a document in a collection
+    const updateDocument = async (collection: string, docId: string, data: object, successMsg: string) => {
+        try {
+            await db.collection(collection).doc(docId).update(data);
+            addToast(successMsg, 'success');
+        } catch (error) {
+            addToast(getFirebaseErrorMessage(error), 'error');
+            throw error;
+        }
+    };
+
+    // Generic function to delete a document from a collection
+    const deleteDocument = async (collection: string, docId: string, successMsg: string) => {
+        try {
+            await db.collection(collection).doc(docId).delete();
+            addToast(successMsg, 'success');
+        } catch (error) {
+            addToast(getFirebaseErrorMessage(error), 'error');
+            throw error;
+        }
+    };
+    
+    // Bookings
+    const addBooking = (booking: Omit<Booking, 'id'>) => addDocument('bookings', booking, '¡Reserva creada exitosamente!');
+    const updateBooking = (booking: Booking) => updateDocument('bookings', booking.id, booking, 'Reserva actualizada.');
+    const deleteBooking = (bookingId: string) => deleteDocument('bookings', bookingId, 'Reserva cancelada.');
+
+    // Users
+    const updateUser = (user: User) => updateDocument('users', user.id, user, 'Usuario actualizado.');
+    const deleteUser = async (userId: string) => {
+        try {
+            await db.collection('users').doc(userId).delete();
+            // Delete associated bookings
+            const userBookings = await db.collection('bookings').where('userId', '==', userId).get();
+            const batch = db.batch();
+            userBookings.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+            addToast('Usuario y sus reservas eliminados.', 'success');
+        } catch (error) {
+            addToast(getFirebaseErrorMessage(error), 'error');
+            throw error;
+        }
+    };
+
+    // Sectors
+    const addSector = (name: string) => addDocument('sectors', { name }, 'Sector agregado.');
+    const updateSector = (sector: Sector) => updateDocument('sectors', sector.id, sector, 'Sector actualizado.');
+    const deleteSector = (id: string) => deleteDocument('sectors', id, 'Sector eliminado.');
+    
+    // Roles
+    const addRole = (name: string) => addDocument('roles', { name }, 'Rol agregado.');
+    const updateRole = (role: Role) => updateDocument('roles', role.id, role, 'Rol actualizado.');
+    const deleteRole = (id: string) => deleteDocument('roles', id, 'Rol eliminado.');
+
+    // Salas
+    const addSala = (name: string, address: string) => addDocument('salas', { name, address }, 'Sala agregada.');
+    const updateSala = (sala: Sala) => updateDocument('salas', sala.id, sala, 'Sala actualizada.');
+    const deleteSala = async (id: string) => {
+         try {
+            await db.collection('salas').doc(id).delete();
+            // Delete associated bookings
+            const salaBookings = await db.collection('bookings').where('roomId', '==', id).get();
+            const batch = db.batch();
+            salaBookings.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+            addToast('Sala y sus reservas eliminadas.', 'success');
+        } catch (error) {
+            addToast(getFirebaseErrorMessage(error), 'error');
+            throw error;
+        }
+    };
+
+    // FIX: Renamed function to avoid conflict with the `setSettings` state setter from `useState`.
+    const updateAppSettings = async (newSettings: Partial<AppSettings>) => {
+        try {
+            await db.collection('settings').doc('config').set(newSettings, { merge: true });
+            addToast('Configuración guardada.', 'success');
+        } catch (error) {
+            addToast(getFirebaseErrorMessage(error), 'error');
+            throw error;
+        }
+    };
+    
+    // QR Modal
+    const openQrModal = () => setIsQrModalOpen(true);
+    const closeQrModal = () => setIsQrModalOpen(false);
 
 
-// --- Initial Data ---
-export const INITIAL_ADMIN_SECRET_CODE = 'TECO2025';
+    const value: AppContextType = {
+        currentUser,
+        users,
+        sectors,
+        roles,
+        salas,
+        bookings,
+        logoUrl: settings.logoUrl,
+        backgroundImageUrl: settings.backgroundImageUrl,
+        homeBackgroundImageUrl: settings.homeBackgroundImageUrl,
+        siteImageUrl: settings.siteImageUrl,
+        adminSecretCode: settings.adminSecretCode,
+        lastBookingDuration: settings.lastBookingDuration || 1,
+        toasts,
+        confirmation,
+        isLoading,
+        isPwaInstallable,
+        isStandalone,
+        pwaInstalledOnce,
+        triggerPwaInstall,
+        login,
+        logout,
+        register,
+        addBooking,
+        deleteBooking,
+        updateBooking,
+        updateUser,
+        deleteUser,
+        addSector,
+        updateSector,
+        deleteSector,
+        addRole,
+        updateRole,
+        deleteRole,
+        addSala,
+        updateSala,
+        deleteSala,
+        setSettings: updateAppSettings,
+        addToast,
+        removeToast,
+        showConfirmation,
+        handleConfirm,
+        handleCancel,
+        isUpdateAvailable,
+        applyUpdate,
+        isQrModalOpen,
+        openQrModal,
+        closeQrModal
+    };
 
-export const INITIAL_SALAS = [
-    { id: '1', name: 'Sala D. French', address: 'Domingo French Nº 548 - Paraná - Entre Ríos' },
-    { id: '2', name: 'Sala de Capacitación', address: 'Domingo French Nº 548 - Paraná - E. Ríos' },
-    { id: '3', name: 'Sala Directorio', address: 'Av. Corrientes 246 - CABA' },
-];
-
-export const INITIAL_ROLES = [
-    { id: '1', name: 'Empleado' },
-    { id: '2', name: 'Supervisor' },
-    { id: '3', name: 'Coordinador' },
-    { id: '4', name: 'Jefe' },
-    { id: '5', name: 'Gerente' },
-    { id: '6', name: 'Administrador' },
-];
-
-export const INITIAL_SECTORS = [
-    { id: '1', name: 'Operación Costa del Paraná' },
-    { id: '2', name: 'Depósito' },
-    { id: '3', name: 'Higiene & Seguridad' },
-    { id: '4', name: 'Eventos French I' },
-    { id: '5', name: 'Eventos French II' },
-    { id: '6', name: 'Red French I' },
-    { id: '7', name: 'Red French II' },
-    { id: '8', name: 'Servicios Especiales' },
-    { id: '9', name: 'Red French' },
-    { id: '10', name: 'Eventos Garay' },
-    { id: '11', name: 'Facilities & Servicios' },
-    { id: '12', name: 'Capital Humano' },
-    { id: '13', name: 'Comercial & Marketing' },
-];
-
-export const DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-export const TIME_SLOTS = Array.from({ length: 10 }, (_, i) => 8 + i); // 8:00 to 17:00
-
-export const DEFAULT_LOGO_URL = 'https://i.postimg.cc/bvr9syk6/Personal-logonuevo-1.png'; 
-export const DEFAULT_BACKGROUND_URL = 'https://i.postimg.cc/3NMv9VMS/oficina-moderna-paredes-verdes-pisos-madera-asientos-comodos-191095-99743.avif';
-export const DEFAULT_HOME_BACKGROUND_URL = 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
-export const DEFAULT_SITE_IMAGE_URL = 'https://i.postimg.cc/Hss2rxB2/IMAGEN-SITE.png';
-// FIX: Clean the shareable URL to its base form, removing extra query parameters.
-// This creates a more robust link for sharing on platforms like WhatsApp.
-export const DEFAULT_SHAREABLE_URL = 'https://aistudio.google.com/apps/drive/11d6Ipe9A0KvKkiOhLVz-7Spg1UbocG-I';
+    return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+};
