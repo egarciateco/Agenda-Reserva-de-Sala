@@ -8,6 +8,7 @@ const QRCodeModal: FC = () => {
     const [isSharing, setIsSharing] = useState(false);
 
     useEffect(() => {
+        // The share API is only available in secure contexts (HTTPS)
         if (navigator.share) {
             setIsWebShareSupported(true);
         }
@@ -48,27 +49,24 @@ const QRCodeModal: FC = () => {
     const handleNativeShare = async () => {
         const shareUrl = DEFAULT_SHAREABLE_URL;
         const title = 'Reserva de Sala - TELECOM';
-        const text = 'Accede a la aplicación de reserva de salas de Telecom usando el enlace.';
-        
+        const text = 'Accede a la aplicación de reserva de salas de Telecom.';
+
         setIsSharing(true);
         try {
-            const response = await fetch(siteImageUrl);
-            if (!response.ok) throw new Error('Network response was not ok');
-            
-            const blob = await response.blob();
-            const file = new File([blob], 'telecom-reserva-app.png', { type: blob.type || 'image/png' });
+            // By sharing only the URL, we allow apps like WhatsApp to create a rich link preview.
+            // This preview uses the 'og:image' meta tag from the app's HTML, making the
+            // entire preview card (image included) a clickable link.
+            const shareData = {
+                title: title,
+                text: text,
+                url: shareUrl,
+            };
 
-            const shareData = { title, text, url: shareUrl, files: [file] };
+            await navigator.share(shareData);
 
-            if (navigator.canShare && navigator.canShare(shareData)) {
-                await navigator.share(shareData);
-            } else {
-                // Fallback for when files can't be shared
-                await navigator.share({ title, text, url: shareUrl });
-            }
         } catch (err) {
             const error = err as Error;
-            // No mostrar error si el usuario cancela la acción de compartir.
+            // Do not show an error if the user cancels the share action.
             if (error.name !== 'AbortError') {
                  addToast('No se pudo compartir la aplicación.', 'error');
                  console.error('Error sharing:', error);
@@ -87,15 +85,16 @@ const QRCodeModal: FC = () => {
     const whatsappLink = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
     const emailSubject = 'App de Reserva de Salas - TELECOM';
     const emailBody = `
-        <p>Hola,</p>
-        <p>Te comparto el acceso a la aplicación de reserva de salas de Telecom.</p>
-        <p>Puedes hacer clic en la imagen o en el enlace de abajo para acceder.</p>
+        <p style="font-family: sans-serif; color: #333;">Hola,</p>
+        <p style="font-family: sans-serif; color: #333;">Te comparto el acceso a la aplicación de reserva de salas de Telecom.</p>
+        <p style="font-family: sans-serif; color: #333;">Puedes hacer clic en la imagen o en el botón de abajo para acceder.</p>
         <br>
-        <a href="${DEFAULT_SHAREABLE_URL}">
-            <img src="${siteImageUrl}" alt="Reserva de Sala - TELECOM" style="width: 150px; height: auto;" />
+        <a href="${DEFAULT_SHAREABLE_URL}" style="display: inline-block;">
+            <img src="${siteImageUrl}" alt="Reserva de Sala - TELECOM" style="width: 100px; height: auto; border-radius: 12px; border: 1px solid #ddd;" />
         </a>
         <br><br>
-        <a href="${DEFAULT_SHAREABLE_URL}">Abrir la aplicación</a>
+        <a href="${DEFAULT_SHAREABLE_URL}" style="font-family: sans-serif; font-size: 14px; text-decoration: none; background-color: #2563eb; color: white; padding: 12px 20px; border-radius: 8px; display: inline-block;">Abrir la aplicación</a>
+        <br><br>
     `;
     const mailtoLink = `mailto:?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
 
@@ -120,7 +119,7 @@ const QRCodeModal: FC = () => {
                 </button>
                 
                 <h3 className="text-xl font-bold mb-4">Compartir Aplicación</h3>
-                <p className="text-gray-300 text-sm mb-6">Usa las siguientes opciones para enviar un enlace a la aplicación.</p>
+                <p className="text-gray-300 text-sm mb-6">Se enviará una vista previa con un enlace para abrir la app.</p>
                 
                 <div className="bg-white p-4 rounded-lg inline-block">
                     <img src={siteImageUrl} alt="Icono de la aplicación" className="w-[200px] h-[200px] object-contain" />
