@@ -9,35 +9,62 @@ const Header: FC = () => {
     const location = useLocation();
 
     const handleShare = async () => {
+        const shareUrl = DEFAULT_SHAREABLE_URL;
         const shareData = {
             title: 'Reserva de Sala - TELECOM',
             text: 'Aplicación para la reserva de salas de reuniones en Telecom.',
-            url: DEFAULT_SHAREABLE_URL,
+            url: shareUrl,
         };
     
-        // Use the modern Web Share API if available (common on mobile)
+        // 1. Modern Web Share API (Primary for Mobile)
         if (navigator.share) {
             try {
                 await navigator.share(shareData);
-                // The browser's share dialog provides user feedback, so a toast is not necessary.
+                return; // Success, exit function
             } catch (err) {
                 const errorString = String(err);
-                // Don't show an error if the user simply closed the share dialog.
                 if (!errorString.includes('AbortError')) {
                     console.error('Error con la API de Web Share:', err);
-                    addToast('Ocurrió un error al intentar compartir.', 'error');
                 }
-            }
-        } else {
-            // Fallback to copying to the clipboard for desktop browsers
-            try {
-                await navigator.clipboard.writeText(DEFAULT_SHAREABLE_URL);
-                addToast('¡Enlace de la aplicación copiado al portapapeles!', 'success');
-            } catch (err) {
-                console.error('Error al copiar el enlace al portapapeles:', err);
-                addToast('No se pudo copiar el enlace. Verifique los permisos del navegador.', 'error');
+                // If sharing fails for a reason other than user cancellation, we can proceed to fallback.
             }
         }
+    
+        // 2. Modern Clipboard API (Primary for Desktop, requires secure context)
+        if (navigator.clipboard && window.isSecureContext) {
+            try {
+                await navigator.clipboard.writeText(shareUrl);
+                addToast('¡Enlace de la aplicación copiado al portapapeles!', 'success');
+                return; // Success, exit function
+            } catch (err) {
+                console.error('La API de Clipboard falló, intentando método alternativo.', err);
+                // Fallthrough to the legacy method if this fails
+            }
+        }
+    
+        // 3. Legacy `document.execCommand` Fallback (for HTTP or older browsers)
+        const textArea = document.createElement("textarea");
+        textArea.value = shareUrl;
+        textArea.style.position = 'fixed';
+        textArea.style.top = '-9999px';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+    
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                addToast('¡Enlace de la aplicación copiado al portapapeles!', 'success');
+            } else {
+                addToast('No se pudo copiar el enlace automáticamente.', 'error');
+            }
+        } catch (err) {
+            console.error('Fallback `execCommand` falló:', err);
+            addToast('No se pudo copiar el enlace.', 'error');
+        }
+    
+        document.body.removeChild(textArea);
     };
 
     const isAdminPage = location.pathname.startsWith('/admin');

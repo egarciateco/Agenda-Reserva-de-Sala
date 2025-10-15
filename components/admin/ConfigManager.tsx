@@ -46,8 +46,6 @@ const ConfigManager: FC = () => {
     const [newAdminCode, setNewAdminCode] = useState(adminSecretCode);
     const [isCodeVisible, setIsCodeVisible] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-
-    const shareableUrl = DEFAULT_SHAREABLE_URL;
     
     const handleSave = async () => {
         if (!newAdminCode.trim()) {
@@ -76,7 +74,7 @@ const ConfigManager: FC = () => {
                 <StaticImageDisplay label="Imagen de Fondo - Página de Inicio (Fija)" value={homeBackgroundImageUrl} />
                 <StaticImageDisplay label="Imagen Site - Ubicación en Agenda (Fija)" value={siteImageUrl} />
 
-                <StaticUrlDisplay label="URL Base de la Aplicación" value={shareableUrl} addToast={addToast} />
+                <StaticUrlDisplay label="URL Base de la Aplicación" value={DEFAULT_SHAREABLE_URL} addToast={addToast} />
 
                  <div>
                     <label className="block text-sm font-medium text-white mb-2">Código de Administrador</label>

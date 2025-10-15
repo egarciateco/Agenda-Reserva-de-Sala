@@ -86,12 +86,21 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
     // --- PWA Install Logic (Robust Version) ---
     useEffect(() => {
-        const handler = (e: Event) => {
-            e.preventDefault();
-            setDeferredInstallPrompt(e);
+        const handler = () => {
+            setDeferredInstallPrompt((window as any).deferredInstallPrompt);
         };
-        window.addEventListener('beforeinstallprompt', handler);
-        return () => window.removeEventListener('beforeinstallprompt', handler);
+
+        // Check if the prompt was already captured when the component mounts
+        if ((window as any).deferredInstallPrompt) {
+            handler();
+        }
+
+        // Listen for the custom event fired from index.tsx for when the prompt becomes available
+        window.addEventListener('pwa-install-ready', handler);
+
+        return () => {
+            window.removeEventListener('pwa-install-ready', handler);
+        };
     }, []);
 
 
@@ -158,18 +167,26 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
     // --- Firebase Auth State Change Listener (Simplified & Robust) ---
     useEffect(() => {
-        const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
+        const unsubscribe = auth.onAuthStateChanged(async (authUser: any) => {
             if (authUser) {
                 const userDoc = await db.collection('users').doc(authUser.uid).get();
                 if (userDoc.exists) {
                     const userData = { id: userDoc.id, ...userDoc.data() } as User;
                     setCurrentUser(userData);
                 } else {
-                    // If an auth user exists but has no Firestore document, it's an inconsistent state.
-                    // This could be an orphaned account from a failed registration.
-                    // The safest action is to sign them out to prevent the app from being in a broken state.
-                    auth.signOut();
-                    setCurrentUser(null);
+                    // This logic handles orphaned accounts from failed registrations.
+                    // If the account is brand new but has no doc, sign out to allow re-registration.
+                    const creationTime = new Date(authUser.metadata.creationTime).getTime();
+                    const lastSignInTime = new Date(authUser.metadata.lastSignInTime).getTime();
+                    const isNewUser = Math.abs(creationTime - lastSignInTime) < 2000; // 2-second tolerance
+
+                    if (isNewUser) {
+                        // This is a new registration in progress, do nothing and let the registration flow handle it.
+                    } else {
+                        // This is an older, inconsistent account. Sign them out.
+                        auth.signOut();
+                        setCurrentUser(null);
+                    }
                 }
             } else {
                 setCurrentUser(null);

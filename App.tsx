@@ -10,6 +10,7 @@ import { ToastMessage } from './types';
 import HomePage from './pages/HomePage';
 import LogoutPage from './pages/LogoutPage';
 import InstallPWAButton from './components/common/InstallPWAButton';
+import { DEFAULT_SHAREABLE_URL } from './constants';
 
 const Toast: FC<{ toast: ToastMessage }> = ({ toast }) => {
     const { removeToast } = useAppContext();
@@ -187,6 +188,32 @@ const AppContent: FC = () => {
           }
           URL.revokeObjectURL(manifestUrl);
         };
+    }, [siteImageUrl, isLoading]);
+
+    // --- Dynamic Meta Tags for Social Sharing ---
+    useEffect(() => {
+        if (isLoading || !siteImageUrl) {
+            return;
+        }
+
+        const updateMetaTag = (property: string, content: string, isNameAttribute = false) => {
+            const selector = isNameAttribute ? `meta[name="${property}"]` : `meta[property="${property}"]`;
+            let element = document.querySelector(selector) as HTMLMetaElement;
+            if (element) {
+                element.content = content;
+            }
+        };
+        
+        const appUrl = DEFAULT_SHAREABLE_URL;
+
+        // Open Graph (Facebook, WhatsApp, etc.)
+        updateMetaTag('og:image', siteImageUrl);
+        updateMetaTag('og:url', appUrl);
+
+        // Twitter Card
+        updateMetaTag('twitter:image', siteImageUrl, true);
+        updateMetaTag('twitter:url', appUrl, true);
+
     }, [siteImageUrl, isLoading]);
 
 
