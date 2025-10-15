@@ -3,16 +3,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import { AppProvider } from './context/AppContext';
 
-// --- PWA Install Prompt (Robust Capture) ---
-// Capture the event as early as possible and store it globally.
-// This prevents race conditions where the event fires before React mounts.
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  // Stash the event so it can be triggered later.
-  (window as any).deferredInstallPrompt = e;
-  // Notify the app that the install prompt is available.
-  window.dispatchEvent(new CustomEvent('pwa-install-ready'));
-});
+// La lógica de captura del evento PWA se ha movido a AppContext.tsx para mayor simplicidad y robustez.
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

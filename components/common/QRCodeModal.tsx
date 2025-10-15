@@ -1,5 +1,6 @@
 import { FC, useState, useEffect } from 'react';
 import { useAppContext } from '../../hooks/useAppContext';
+import { DEFAULT_SHAREABLE_URL } from '../../constants';
 
 const QRCodeModal: FC = () => {
     const { isQrModalOpen, closeQrModal, addToast, siteImageUrl } = useAppContext();
@@ -14,9 +15,8 @@ const QRCodeModal: FC = () => {
     }, []);
 
     // --- Robust Share URL Generation ---
-    // Get the base URL (without any hash routes or query params) to ensure crawlers
-    // read the meta tags from the root index.html.
-    const baseUrl = window.location.href.split('#')[0].split('?')[0];
+    // Use the reliable, clean base URL from constants.
+    const baseUrl = DEFAULT_SHAREABLE_URL;
     // Add a unique timestamp as a cache-busting parameter.
     // This forces services like WhatsApp to re-fetch the link metadata (og:image)
     // instead of serving a stale, cached version that might be missing the image.
