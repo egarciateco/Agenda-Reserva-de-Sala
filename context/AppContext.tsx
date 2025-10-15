@@ -139,7 +139,7 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
         return () => window.removeEventListener('sw-update', handleUpdate);
     }, []);
 
-     // --- Dynamic Manifest & Meta Tags Injection ---
+     // --- Dynamic Manifest Injection ---
     useEffect(() => {
         if (isLoading || !settings.siteImageUrl) {
             return;
@@ -183,19 +183,8 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
         document.head.appendChild(link);
         
         setIsManifestReady(true);
-
-        // --- Social Meta Tags ---
-        const updateMetaTag = (property: string, content: string, isNameAttribute = false) => {
-            const selector = isNameAttribute ? `meta[name="${property}"]` : `meta[property="${property}"]`;
-            let element = document.querySelector(selector) as HTMLMetaElement;
-            if (element) { element.content = content; }
-        };
         
-        const appUrl = DEFAULT_SHAREABLE_URL;
-        updateMetaTag('og:image', settings.siteImageUrl);
-        updateMetaTag('og:url', appUrl);
-        updateMetaTag('twitter:image', settings.siteImageUrl, true);
-        updateMetaTag('twitter:url', appUrl, true);
+        // Social meta tags are now handled statically in index.html for crawler reliability.
 
         return () => {
           setIsManifestReady(false);
