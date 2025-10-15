@@ -1,6 +1,6 @@
 import { createContext, useState, useEffect, useCallback, FC, ReactNode, useRef } from 'react';
 import { User, Sector, Role, Booking, AppSettings, ToastMessage, AppContextType, ConfirmationState, Sala, ConfirmationOptions } from '../types';
-import { INITIAL_ROLES, INITIAL_SECTORS, DEFAULT_LOGO_URL, DEFAULT_BACKGROUND_URL, INITIAL_ADMIN_SECRET_CODE, DEFAULT_HOME_BACKGROUND_URL, INITIAL_SALAS, DEFAULT_SITE_IMAGE_URL } from '../constants';
+import { INITIAL_ROLES, INITIAL_SECTORS, DEFAULT_LOGO_URL, DEFAULT_BACKGROUND_URL, INITIAL_ADMIN_SECRET_CODE, DEFAULT_HOME_BACKGROUND_URL, INITIAL_SALAS, DEFAULT_SITE_IMAGE_URL, EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, EMAILJS_PUBLIC_KEY } from '../constants';
 import { getFirebaseErrorMessage } from '../utils/helpers';
 import { auth, db } from '../utils/firebase';
 
@@ -153,40 +153,42 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
     // --- Firebase Auth State Change Listener (Robust Handler) ---
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
-            if (authUser) {
-                const userDocRef = db.collection('users').doc(authUser.uid);
-                const userDoc = await userDocRef.get();
+            if (authUser && authUser.metadata.creationTime && authUser.metadata.lastSignInTime) {
+                // Robust check for a new user registration.
+                // Timestamps can differ by milliseconds, so a small threshold is safer than '==='.
+                const creationTime = new Date(authUser.metadata.creationTime).getTime();
+                const lastSignInTime = new Date(authUser.metadata.lastSignInTime).getTime();
+                const isNewUser = Math.abs(lastSignInTime - creationTime) < 2000; // 2-second threshold
 
-                if (userDoc.exists) {
-                    const userData = { id: userDoc.id, ...userDoc.data() } as User;
-                    setCurrentUser(userData);
+                if (isNewUser) {
+                    // This is a new registration in progress. The `register` function will handle
+                    // the flow, including the final `signOut`. We must NOT set `currentUser` here
+                    // to prevent a premature redirect that would break the registration process.
                 } else {
-                    const creationTime = new Date(authUser.metadata.creationTime || 0);
-                    const now = new Date();
-                    const ageInMinutes = (now.getTime() - creationTime.getTime()) / 1000 / 60;
-
-                    if (ageInMinutes < 5) {
-                        try {
-                            await authUser.delete();
-                            addToast('Se limpió un registro anterior incompleto. Por favor, intenta crear tu cuenta de nuevo.', 'error');
-                        } catch (deleteError) {
-                            console.error("Failed to delete orphaned user:", deleteError);
-                            addToast('Ocurrió un error al limpiar una cuenta incompleta.', 'error');
-                            await auth.signOut();
-                        }
+                    // This is a normal login for an existing user.
+                    const userDoc = await db.collection('users').doc(authUser.uid).get();
+                    if (userDoc.exists) {
+                        const userData = { id: userDoc.id, ...userDoc.data() } as User;
+                        setCurrentUser(userData);
                     } else {
-                        await auth.signOut();
+                        // Orphaned account (auth record exists, but no profile). Sign out.
+                        auth.signOut();
                     }
-                    setCurrentUser(null);
                 }
             } else {
+                // No user is authenticated.
                 setCurrentUser(null);
             }
-            if (isLoading) setIsLoading(false);
+
+            // The auth check is complete, hide the main loading spinner.
+            if (isLoading) {
+                setIsLoading(false);
+            }
         });
 
         return () => unsubscribe();
-    }, [addToast, isLoading]);
+    }, [isLoading, addToast]);
+
 
     // --- Firestore Listeners for Real-time Data ---
     useEffect(() => {
@@ -246,7 +248,46 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
     // --- CRUD Functions ---
     const addBooking = async (booking: Omit<Booking, 'id'>) => {
-        try { await db.collection('bookings').add(booking); addToast('Reserva creada con éxito.', 'success'); } catch (error) { addToast(getFirebaseErrorMessage(error), 'error'); throw error; }
+        try { 
+            await db.collection('bookings').add(booking); 
+            addToast('Reserva creada con éxito.', 'success'); 
+            
+            // --- Send Email Notifications to All Users ---
+            if (currentUser && window.emailjs) {
+                const sala = salas.find(s => s.id === booking.roomId);
+                const bookingDateFormatted = new Date(booking.date + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+                const emailPromises = users.map(user => {
+                    const templateParams = {
+                        to_name: `${user.firstName} ${user.lastName}`,
+                        to_email: user.email,
+                        booking_user_name: `${currentUser.firstName} ${currentUser.lastName}`,
+                        booking_date: bookingDateFormatted,
+                        booking_time: `${booking.startTime}:00 hs`,
+                        booking_duration: `${booking.duration} hora(s)`,
+                        booking_room_name: sala ? sala.name : 'Sala desconocida'
+                    };
+
+                    return window.emailjs.send(
+                        EMAILJS_SERVICE_ID,
+                        EMAILJS_TEMPLATE_ID,
+                        templateParams,
+                        EMAILJS_PUBLIC_KEY
+                    ).catch((err: any) => {
+                        // Log errors without stopping the process
+                        console.error(`Failed to send email to ${user.email}:`, String(err));
+                    });
+                });
+                
+                // Wait for all emails to be sent (or fail)
+                await Promise.all(emailPromises);
+                addToast('Notificaciones de reserva enviadas.', 'success');
+            }
+
+        } catch (error) { 
+            addToast(getFirebaseErrorMessage(error), 'error'); 
+            throw error; 
+        }
     };
     const deleteBooking = async (bookingId: string) => {
         try { await db.collection('bookings').doc(bookingId).delete(); addToast('Reserva cancelada con éxito.', 'success'); } catch (error) { addToast(getFirebaseErrorMessage(error), 'error'); throw error; }

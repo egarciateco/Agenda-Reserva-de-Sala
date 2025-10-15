@@ -224,7 +224,7 @@ const AgendaPage: FC = () => {
                                                         <div className="h-full flex flex-col justify-between p-1 rounded">
                                                             <div>
                                                                 <p className="font-bold">{formatUserText(booking.user?.lastName || '')}, {formatUserText(booking.user?.firstName || '')}</p>
-                                                                <p className="text-gray-300">{formatUserText(booking.user?.sector || '')}</p>
+                                                                <p className="text-gray-300">{formatUserText(booking.user?.sector || 'N/A')}</p>
                                                             </div>
                                                             {(isCurrentUserBooking || isAdmin) && !isPast && (
                                                                 <button onClick={() => handleDeleteBooking(booking)} className="text-red-300 hover:text-red-200 text-xs mt-2 self-end">

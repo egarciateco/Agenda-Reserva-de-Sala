@@ -54,7 +54,10 @@ export const getFirebaseErrorMessage = (error: any): string => {
         message = 'La contraseña es muy débil. Debe tener al menos 6 caracteres.';
         break;
       case 'auth/network-request-failed':
-        message = 'Error de red. No se pudo completar la solicitud. Verifica tu conexión.';
+        message = 'Error de red. Por favor, verifica tu conexión a internet e inténtalo de nuevo.';
+        break;
+      case 'auth/popup-closed-by-user':
+        message = 'El proceso fue cancelado. Por favor, inténtalo de nuevo.';
         break;
       
       // FIRESTORE ERRORS
@@ -68,8 +71,10 @@ export const getFirebaseErrorMessage = (error: any): string => {
          message = 'El recurso solicitado no fue encontrado.';
          break;
       default:
-        console.error('Unhandled Firebase Error:', String(error));
-        // Keep the default message for unhandled codes
+        // Log unhandled errors for easier debugging but show a generic message to the user.
+        console.error(`Unhandled Firebase Error Code: ${error.code}, Message: ${error.message}`);
+        // The default generic message is kept.
+        break;
     }
   } else if (error instanceof Error) {
     // Handle generic JS errors

@@ -1,4 +1,4 @@
-import { useState, FC, ChangeEvent, FormEvent } from 'react';
+import { useState, FC, ChangeEvent, FormEvent, useCallback, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../hooks/useAppContext';
 
@@ -36,7 +36,8 @@ const PasswordInput: FC<{name: string, value: string, placeholder: string, onCha
 const RegisterPage: FC = () => {
     const { register, sectors, roles, logoUrl, adminSecretCode, addToast } = useAppContext();
     const navigate = useNavigate();
-    const [formData, setFormData] = useState({
+
+    const getInitialState = useCallback(() => ({
         firstName: '',
         lastName: '',
         email: '',
@@ -46,9 +47,16 @@ const RegisterPage: FC = () => {
         password: '',
         confirmPassword: '',
         adminCode: ''
-    });
+    }), [sectors, roles]);
+
+    const [formData, setFormData] = useState(getInitialState());
     const [isLoading, setIsLoading] = useState(false);
     
+    // Effect to update form state if default values load after initial render.
+    useEffect(() => {
+        setFormData(getInitialState());
+    }, [getInitialState]);
+
     const isRegisteringAsAdmin = formData.role === 'Administrador';
 
     const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -106,7 +114,8 @@ const RegisterPage: FC = () => {
         try {
             await register(userData, passwordForRegistration);
             addToast('¡Cuenta creada exitosamente! Ya puedes iniciar sesión.', 'success');
-            navigate('/login');
+            setFormData(getInitialState()); // Clear the form
+            navigate('/login', { replace: true });
         } catch (err) {
             // The specific error (e.g., email in use) is shown by the context.
         } finally {
