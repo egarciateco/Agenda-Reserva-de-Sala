@@ -84,13 +84,21 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
         }
     }, []);
 
-    // --- PWA Install Logic ---
+    // --- PWA Install Logic (Robust Version) ---
     useEffect(() => {
-        const handler = (e: CustomEvent) => {
-            setDeferredInstallPrompt(e.detail);
+        const checkInstallPrompt = () => {
+            if ((window as any).deferredInstallPrompt) {
+                setDeferredInstallPrompt((window as any).deferredInstallPrompt);
+            }
         };
-        window.addEventListener('pwa-install-ready', handler as EventListener);
-        return () => window.removeEventListener('pwa-install-ready', handler as EventListener);
+        
+        // Check immediately in case the event fired before this component mounted.
+        checkInstallPrompt();
+
+        // Also listen for the event in case it fires later.
+        window.addEventListener('pwa-install-ready', checkInstallPrompt);
+        
+        return () => window.removeEventListener('pwa-install-ready', checkInstallPrompt);
     }, []);
 
     const triggerPwaInstall = () => {
@@ -99,7 +107,11 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
             deferredInstallPrompt.userChoice.then((choiceResult: { outcome: string }) => {
                 if (choiceResult.outcome === 'accepted') {
                     addToast('¡Aplicación instalada con éxito!', 'success');
-                    localStorage.setItem('pwaInstalled', 'true');
+                    try {
+                        localStorage.setItem('pwaInstalled', 'true');
+                    } catch (e) {
+                        console.error("Could not save PWA installed status to localStorage", e);
+                    }
                     setPwaInstalledOnce(true);
                 }
                 setDeferredInstallPrompt(null);
@@ -150,44 +162,43 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
         handleCancel();
     };
 
-    // --- Firebase Auth State Change Listener (Robust Handler) ---
+    // --- Firebase Auth State Change Listener (Definitive & Robust) ---
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
-            if (authUser && authUser.metadata.creationTime && authUser.metadata.lastSignInTime) {
-                // Robust check for a new user registration.
-                // Timestamps can differ by milliseconds, so a small threshold is safer than '==='.
-                const creationTime = new Date(authUser.metadata.creationTime).getTime();
-                const lastSignInTime = new Date(authUser.metadata.lastSignInTime).getTime();
-                const isNewUser = Math.abs(lastSignInTime - creationTime) < 2000; // 2-second threshold
-
-                if (isNewUser) {
-                    // This is a new registration in progress. The `register` function will handle
-                    // the flow, including the final `signOut`. We must NOT set `currentUser` here
-                    // to prevent a premature redirect that would break the registration process.
+            if (authUser) {
+                const userDoc = await db.collection('users').doc(authUser.uid).get();
+                if (userDoc.exists) {
+                    const userData = { id: userDoc.id, ...userDoc.data() } as User;
+                    setCurrentUser(userData);
                 } else {
-                    // This is a normal login for an existing user.
-                    const userDoc = await db.collection('users').doc(authUser.uid).get();
-                    if (userDoc.exists) {
-                        const userData = { id: userDoc.id, ...userDoc.data() } as User;
-                        setCurrentUser(userData);
-                    } else {
-                        // Orphaned account (auth record exists, but no profile). Sign out.
+                    // This logic is crucial to differentiate a new registration from a true "orphaned" account.
+                    const metadata = authUser.metadata;
+                    const creationTime = new Date(metadata.creationTime || 0).getTime();
+                    const lastSignInTime = new Date(metadata.lastSignInTime || 0).getTime();
+                    
+                    // If the account was created less than 2 seconds ago, it's a new registration in progress.
+                    // We should NOT sign them out, as the `register` function is still writing their userDoc.
+                    const isNewUserRegistration = Math.abs(creationTime - lastSignInTime) < 2000;
+
+                    if (!isNewUserRegistration) {
+                        // This is a true orphaned account (e.g., old account, DB entry deleted).
+                        // Sign them out to prevent an inconsistent state.
+                        setCurrentUser(null);
                         auth.signOut();
                     }
+                    // If it IS a new user, we do nothing here and let the `register` function complete.
                 }
             } else {
-                // No user is authenticated.
                 setCurrentUser(null);
             }
 
-            // The auth check is complete, hide the main loading spinner.
             if (isLoading) {
                 setIsLoading(false);
             }
         });
 
         return () => unsubscribe();
-    }, [isLoading, addToast]);
+    }, [isLoading]);
 
 
     // --- Firestore Listeners for Real-time Data ---
@@ -235,10 +246,14 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
             };
             
             await db.collection('users').doc(createdAuthUser.uid).set(userDocumentData);
+            // After successful registration and data storage, sign the user out
+            // to enforce the "register then login" flow.
             await auth.signOut();
         } catch (error) {
+            // Self-healing: if the user was created in Auth but Firestore failed,
+            // delete the auth user to allow them to try again.
             if (createdAuthUser) {
-                try { await createdAuthUser.delete(); } catch (deleteError) { console.error("CRITICAL: Failed to clean up user.", deleteError); }
+                try { await createdAuthUser.delete(); } catch (deleteError) { console.error("CRITICAL: Failed to clean up orphaned user.", deleteError); }
             }
             const message = getFirebaseErrorMessage(error);
             addToast(message, 'error');

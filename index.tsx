@@ -4,15 +4,17 @@ import App from './App';
 import { AppProvider } from './context/AppContext';
 
 // --- Global PWA Install Prompt Handler ---
-// By capturing the event here, we avoid race conditions where the event fires 
-// before the React component tree is ready to handle it.
+// By capturing the event here and storing it on the window, we ensure it's
+// available for the React app to consume whenever it's ready, avoiding race conditions.
 window.addEventListener('beforeinstallprompt', (e) => {
-  // Prevent the default browser prompt from appearing.
+  // Prevent the default browser prompt from appearing immediately.
   e.preventDefault();
-  // Dispatch a custom event that the React app can listen for once it's ready.
-  const installReadyEvent = new CustomEvent('pwa-install-ready', { detail: e });
-  window.dispatchEvent(installReadyEvent);
+  // Stash the event so it can be triggered later.
+  (window as any).deferredInstallPrompt = e;
+  // Optionally, dispatch an event to notify the app, but storing it is more robust.
+  window.dispatchEvent(new CustomEvent('pwa-install-ready'));
 });
+
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
