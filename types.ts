@@ -1,4 +1,4 @@
-// FIX: Use default import for Firebase compat library.
+// FIX: Changed to a default import for Firebase compat which correctly exposes types like `firebase.User`.
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 
@@ -70,7 +70,8 @@ export interface ConfirmationState {
 
 export interface AppContextType {
   user: User | null;
-  firebaseUser: firebase.auth.User | null;
+  // FIX: The correct user type from the compat library is `firebase.User`.
+  firebaseUser: firebase.User | null;
   loading: boolean;
   
   // Auth

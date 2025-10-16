@@ -10,7 +10,7 @@ import {
     DEFAULT_LOGO_URL, DEFAULT_BACKGROUND_URL, DEFAULT_HOME_BACKGROUND_URL, DEFAULT_SITE_IMAGE_URL,
     INITIAL_ADMIN_SECRET_CODE, INITIAL_SALAS, INITIAL_SECTORS, INITIAL_ROLES
 } from '../constants';
-// FIX: Use default import for Firebase compat library.
+// FIX: Changed to a default import for Firebase compat which correctly exposes types like `firebase.User`.
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 
@@ -18,7 +18,8 @@ export const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
     // State
-    const [firebaseUser, setFirebaseUser] = useState<firebase.auth.User | null>(null);
+    // FIX: The correct user type from the compat library is `firebase.User`.
+    const [firebaseUser, setFirebaseUser] = useState<firebase.User | null>(null);
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     
@@ -199,12 +200,10 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
         // Auth
         login, register, logout,
         // CRUD
-        // FIX: The `add` method from the CRUD factory returns a DocumentReference, but the type expects void. By awaiting the call inside a block, the function implicitly returns Promise<void>.
         addBooking: async (booking) => { await bookingCRUD.add({ ...booking, createdAt: new Date() } as any); },
         updateBooking: bookingCRUD.update,
         deleteBooking: bookingCRUD.delete,
         
-        // FIX: The `add` method from the CRUD factory returns a DocumentReference, but the type expects void. By awaiting the call inside a block, the function implicitly returns Promise<void>.
         addSala: async (name, address) => { await salaCRUD.add({ name, address } as any); },
         updateSala: salaCRUD.update,
         deleteSala: async (id) => {
@@ -216,12 +215,10 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
             await batch.commit();
         },
 
-        // FIX: The `add` method from the CRUD factory returns a DocumentReference, but the type expects void. By awaiting the call inside a block, the function implicitly returns Promise<void>.
         addSector: async (name) => { await sectorCRUD.add({ name } as any); },
         updateSector: sectorCRUD.update,
         deleteSector: sectorCRUD.delete,
 
-        // FIX: The `add` method from the CRUD factory returns a DocumentReference, but the type expects void. By awaiting the call inside a block, the function implicitly returns Promise<void>.
         addRole: async (name) => { await roleCRUD.add({ name } as any); },
         updateRole: roleCRUD.update,
         deleteRole: roleCRUD.delete,

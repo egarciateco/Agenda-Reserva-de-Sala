@@ -1,3 +1,4 @@
+// FIX: Changed to a default import for Firebase compat which correctly exposes the `firebase` object with all its methods.
 import firebase from "firebase/compat/app";
 import "firebase/compat/auth";
 import "firebase/compat/firestore";
@@ -12,8 +13,8 @@ const firebaseConfig = {
   appId: "1:56158496123:web:927b0044e50e13771609de",
 };
 
+
 // Initialize Firebase only if it hasn't been initialized yet.
-// This is a safeguard against re-initialization, e.g., in hot-reloading environments.
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
