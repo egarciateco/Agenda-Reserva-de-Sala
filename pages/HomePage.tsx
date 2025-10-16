@@ -69,9 +69,12 @@ const HomePage: FC = () => {
                     <p className="font-bold">Realizado por:</p>
                     <p>Esteban García. - Para uso exclusivo de Telecom Argentina S.A.</p>
                 </div>
-                <div className="mt-2">
+                <div className="mt-2 flex gap-4">
                     <Link to="/privacy-policy" className="text-gray-400 hover:text-white underline transition-colors">
                         Política de Privacidad
+                    </Link>
+                    <Link to="/terms-of-service" className="text-gray-400 hover:text-white underline transition-colors">
+                        Términos de Servicio
                     </Link>
                 </div>
             </footer>

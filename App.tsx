@@ -1,5 +1,3 @@
-
-
 import { FC, ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
@@ -12,6 +10,7 @@ import AgendaPage from './pages/AgendaPage';
 import AdminPage from './pages/AdminPage';
 import LogoutPage from './pages/LogoutPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import TermsOfServicePage from './pages/TermsOfServicePage';
 import InstallPWAButton from './components/common/InstallPWAButton';
 import ManualInstallModal from './components/common/ManualInstallModal';
 import QRCodeModal from './components/common/QRCodeModal';
@@ -82,6 +81,7 @@ const App: FC = () => {
                     <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
                     <Route path="/logout" element={<LogoutPage />} />
                     <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+                    <Route path="/terms-of-service" element={<TermsOfServicePage />} />
 
                     <Route path="/agenda" element={<PrivateRoute><AgendaPage /></PrivateRoute>} />
                     <Route path="/admin" element={<AdminRoute><AdminPage /></PrivateRoute>} />
