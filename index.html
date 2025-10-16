@@ -25,21 +25,27 @@
   <meta property="twitter:image" content="https://i.postimg.cc/Hss2rxB2/IMAGEN-SITE.png">
 
   <script type="importmap">
-  {
-    "imports": {
-      "react": "https://aistudiocdn.com/react@^19.2.0",
-      "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-      "react/": "https://aistudiocdn.com/react@^19.2.0/",
-      "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.4",
-      "react-hot-toast": "https://aistudiocdn.com/react-hot-toast@^2.6.0",
-      "firebase/": "https://aistudiocdn.com/firebase@^12.4.0/"
-    }
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.4",
+    "react-hot-toast": "https://aistudiocdn.com/react-hot-toast@^2.6.0",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.4.0/"
   }
-  </script>
+}
+</script>
 </head>
 <body>
   <noscript>Necesitas habilitar JavaScript para ejecutar esta aplicación.</noscript>
   <div id="root"></div>
+
+  <!-- Carga global de Firebase SDKs para evitar conflictos con el sistema de módulos -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
   <script type="module" src="/index.tsx"></script>
 </body>
 </html>
