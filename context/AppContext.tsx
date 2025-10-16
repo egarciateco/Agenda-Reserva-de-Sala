@@ -15,7 +15,7 @@ import {
 // FIX: The User type is not a named export from 'firebase/auth' in the compat library.
 // The correct type is `firebase.User`, which is available after importing from 'firebase/compat/app'.
 import type firebase from 'firebase/compat/app';
-import { User as FirebaseUser } from 'firebase/auth';
+// FIX: Removed incorrect import of 'User' from 'firebase/auth'. The compat library does not export this type.
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
 

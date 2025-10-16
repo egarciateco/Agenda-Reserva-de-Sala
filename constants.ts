@@ -48,6 +48,6 @@ export const DEFAULT_LOGO_URL = 'https://i.postimg.cc/bvr9syk6/Personal-logonuev
 export const DEFAULT_BACKGROUND_URL = 'https://i.postimg.cc/3NMv9VMS/oficina-moderna-paredes-verdes-pisos-madera-asientos-comodos-191095-99743.avif';
 export const DEFAULT_HOME_BACKGROUND_URL = 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG9ötby1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
 export const DEFAULT_SITE_IMAGE_URL = 'https://i.postimg.cc/Hss2rxB2/IMAGEN-SITE.png';
-// FIX: Replace the non-crawlable developer URL with a clean, public-facing URL.
+// FIX: Replaced the non-crawlable developer URL with a clean, public-facing URL from the Firebase config.
 // This is essential for social media platforms (like WhatsApp) to generate a rich link preview.
-export const DEFAULT_SHAREABLE_URL = 'https://aistudio.google.com/apps/drive/11d6Ipe9A0KvKkiOhLVz-7Spg1UbocG-I';
+export const DEFAULT_SHAREABLE_URL = 'https://reservalasala-c176c.firebaseapp.com';
