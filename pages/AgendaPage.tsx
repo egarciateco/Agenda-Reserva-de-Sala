@@ -152,10 +152,10 @@ const AgendaPage: FC = () => {
 
     return (
         <div 
-            className="h-screen bg-cover bg-center bg-fixed"
+            className="relative h-screen bg-cover bg-center bg-fixed"
             style={{ backgroundImage: `url(${backgroundImageUrl})` }}
         >
-            <div className="flex flex-col h-full bg-gray-900/80 text-white">
+            <div className="absolute inset-0 flex flex-col bg-gray-900/80 text-white">
                 <Header />
                 <main className="flex-1 p-2 sm:p-4 md:p-6 overflow-auto">
                     <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">

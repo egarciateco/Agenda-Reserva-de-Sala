@@ -1,19 +1,7 @@
-// Importa los tipos de Firebase para la seguridad de tipos, pero no el código en tiempo de ejecución.
-// FIX: Correctly import the type of the default export from firebase/compat/app.
-import type firebase from 'firebase/compat/app';
+import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
 
-// Define una interfaz para el objeto global `window` para que TypeScript sepa que `firebase` existe.
-declare global {
-  interface Window {
-    // FIX: Use the imported firebase type for the global firebase object.
-    firebase: firebase;
-  }
-}
-
-// Se ha integrado la configuración directamente en el código para asegurar la conexión.
-// Esta es la configuración pública para el proyecto de Firebase 'reservalasala-c176c'.
 const firebaseConfig = {
   apiKey: "AIzaSyD1JfKhFGNElcKbGRjHF3sAZdMgqIluSYI",
   authDomain: "reservalasala-c176c.firebaseapp.com",
@@ -24,16 +12,6 @@ const firebaseConfig = {
   measurementId: "G-9B5G99MLPX"
 };
 
-// Accede a Firebase a través del objeto global `window`.
-const firebase = window.firebase;
-
-// Comprueba si el objeto firebase está disponible. Si no lo está, la carga del script falló.
-if (!firebase) {
-  throw new Error("El SDK de Firebase no se ha cargado. Por favor, comprueba tu conexión a internet y la configuración del script.");
-}
-
-// Inicializa Firebase solo si no ha sido inicializado.
-// FIX: Use the 'firebase' type, which correctly includes the 'app' namespace and 'App' type.
 let app: firebase.app.App;
 
 if (!firebase.apps.length) {
@@ -44,14 +22,13 @@ if (!firebase.apps.length) {
     throw e;
   }
 } else {
-  app = firebase.app(); // Obtiene la instancia de la app por defecto si ya existe.
+  app = firebase.app();
 }
 
-// Exporta los servicios de Firebase para ser usados en toda la aplicación.
 export const auth = app.auth();
 export const db = app.firestore();
 
 // Exporta el tipo de usuario de Firebase para consistencia.
-// El tipo correcto con la librería de compatibilidad es `firebase.User`.
-// FIX: The 'User' type is available on the 'firebase' type namespace.
+// El tipo correcto con la librería de compatibilidad v9 es `firebase.User`.
+// FIX: The type `firebase.auth.User` is incorrect. With the Firebase v9 compat library, the correct user type is `firebase.User`.
 export type FirebaseUser = firebase.User;

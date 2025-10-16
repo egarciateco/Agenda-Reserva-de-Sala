@@ -13,26 +13,13 @@ const QRCodeModal: FC = () => {
         }
     }, []);
 
-    // Use the fixed shareable URL from constants to ensure consistency.
-    // A timestamp is added as a "cache buster" to force services like WhatsApp to
-    // regenerate the link preview instead of using a stale, cached version.
     const shareUrl = `${DEFAULT_SHAREABLE_URL}?t=${Date.now()}`;
 
-
     const handleNativeShare = async () => {
-        const title = 'Reserva de Sala - TELECOM';
-        const text = 'Accede a la aplicación de reserva de salas de Telecom.';
-
         setIsSharing(true);
         try {
-            const shareData = {
-                title: title,
-                text: text,
-                url: shareUrl,
-            };
-
-            await navigator.share(shareData);
-
+            // Compartir solo la URL es la forma más robusta de asegurar que las apps generen una vista previa.
+            await navigator.share({ url: shareUrl });
         } catch (err) {
             const error = err as Error;
             if (error.name !== 'AbortError') {
@@ -48,8 +35,7 @@ const QRCodeModal: FC = () => {
         return null;
     }
 
-    const shareText = `Accede a la aplicación de reserva de salas de Telecom: ${shareUrl}`;
-    const whatsappLink = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+    const whatsappLink = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareUrl)}`;
     const emailSubject = 'App de Reserva de Salas - TELECOM';
     const emailBody = `
         <p style="font-family: sans-serif; color: #333;">Hola,</p>
