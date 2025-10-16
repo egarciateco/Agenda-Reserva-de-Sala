@@ -1,13 +1,6 @@
-import type firebase from 'firebase/compat/app';
+import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
-
-// Assert the global firebase object from the script tag has the correct type.
-const firebaseApp = (window as any).firebase as typeof firebase;
-
-if (!firebaseApp) {
-  throw new Error("Firebase SDK not loaded. Please check the script tags in index.html.");
-}
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -20,13 +13,13 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase only if it hasn't been initialized yet.
-if (!firebaseApp.apps.length) {
-  firebaseApp.initializeApp(firebaseConfig);
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
 }
 
 // Initialize and export services
-export const auth = firebaseApp.auth();
-export const db = firebaseApp.firestore();
+export const auth = firebase.auth();
+export const db = firebase.firestore();
 
 // Type export for use in other files.
 // The User type is available on the root firebase namespace in the compat library.
