@@ -1,6 +1,10 @@
-// FIX: Changed to a default import for Firebase compat which correctly exposes types like `firebase.User`.
-import firebase from 'firebase/compat/app';
+// Se importan los paquetes de compatibilidad de Firebase por sus efectos secundarios.
+// Esto asegura que el objeto `firebase` esté disponible globalmente en `window`.
+import 'firebase/compat/app';
 import 'firebase/compat/auth';
+
+// Declaramos el objeto global `firebase` para que TypeScript lo reconozca.
+declare const firebase: any;
 
 // BeforeInstallPromptEvent is not a standard event type, so we define it here.
 export interface BeforeInstallPromptEvent extends Event {
@@ -70,8 +74,9 @@ export interface ConfirmationState {
 
 export interface AppContextType {
   user: User | null;
-  // FIX: The correct user type from the compat library is `firebase.User`.
-  firebaseUser: firebase.User | null;
+  // La corrección clave: usamos el tipo `firebase.auth.User` del objeto global.
+  // FIX: Use `firebase.auth.User` for the Firebase user type from the compat library.
+  firebaseUser: firebase.auth.User | null;
   loading: boolean;
   
   // Auth

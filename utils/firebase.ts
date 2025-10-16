@@ -1,5 +1,6 @@
-// FIX: Changed to a default import for Firebase compat which correctly exposes the `firebase` object with all its methods.
-import firebase from "firebase/compat/app";
+// Se importan los paquetes de compatibilidad de Firebase por sus efectos secundarios.
+// Estos scripts adjuntan el objeto `firebase` al objeto `window` global.
+import "firebase/compat/app";
 import "firebase/compat/auth";
 import "firebase/compat/firestore";
 
@@ -15,13 +16,15 @@ const firebaseConfig = {
 
 
 // Initialize Firebase only if it hasn't been initialized yet.
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
+// Accedemos a `firebase` a través del objeto `window` ya que los scripts lo exponen globalmente.
+// FIX: The compat scripts attach `firebase` to the window object. Access it from there.
+if (!(window as any).firebase?.apps.length) {
+  (window as any).firebase.initializeApp(firebaseConfig);
 }
 
 // Initialize and export services
-export const auth = firebase.auth();
-export const db = firebase.firestore();
+export const auth = (window as any).firebase.auth();
+export const db = (window as any).firebase.firestore();
 
 // Enable offline persistence for a robust PWA experience.
 db.enablePersistence()

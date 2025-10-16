@@ -10,16 +10,17 @@ import {
     DEFAULT_LOGO_URL, DEFAULT_BACKGROUND_URL, DEFAULT_HOME_BACKGROUND_URL, DEFAULT_SITE_IMAGE_URL,
     INITIAL_ADMIN_SECRET_CODE, INITIAL_SALAS, INITIAL_SECTORS, INITIAL_ROLES
 } from '../constants';
-// FIX: Changed to a default import for Firebase compat which correctly exposes types like `firebase.User`.
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/auth';
+
+// Ya no es necesario importar `firebase` aquí, ya que los tipos se manejan en `types.ts`
+// y la inicialización en `utils/firebase.ts`.
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
     // State
-    // FIX: The correct user type from the compat library is `firebase.User`.
-    const [firebaseUser, setFirebaseUser] = useState<firebase.User | null>(null);
+    // El tipo `firebase.auth.User` ahora es reconocido globalmente gracias a la declaración en `types.ts`.
+    // FIX: Use `firebase.auth.User` for the Firebase user type from the compat library.
+    const [firebaseUser, setFirebaseUser] = useState<firebase.auth.User | null>(null);
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     

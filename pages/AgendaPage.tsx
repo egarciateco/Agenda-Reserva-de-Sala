@@ -151,7 +151,7 @@ const AgendaPage: FC = () => {
     const selectedSala = salas.find(s => s.id === selectedSalaId);
 
     return (
-        <div className="absolute inset-0 flex flex-col bg-gray-900/80 text-white">
+        <div className="min-h-screen flex flex-col bg-gray-900/80 text-white">
             <Header />
             <main className="flex-1 p-2 sm:p-4 md:p-6 overflow-auto">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
