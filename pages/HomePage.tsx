@@ -1,5 +1,5 @@
 import { FC } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAppContext } from '../hooks/useAppContext';
 
 const HomePage: FC = () => {
@@ -68,6 +68,11 @@ const HomePage: FC = () => {
                 <div>
                     <p className="font-bold">Realizado por:</p>
                     <p>Esteban García. - Para uso exclusivo de Telecom Argentina S.A.</p>
+                </div>
+                <div className="mt-2">
+                    <Link to="/privacy-policy" className="text-gray-400 hover:text-white underline transition-colors">
+                        Política de Privacidad
+                    </Link>
                 </div>
             </footer>
             <style>{`

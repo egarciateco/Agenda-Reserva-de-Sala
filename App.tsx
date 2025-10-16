@@ -11,6 +11,7 @@ import RegisterPage from './pages/RegisterPage';
 import AgendaPage from './pages/AgendaPage';
 import AdminPage from './pages/AdminPage';
 import LogoutPage from './pages/LogoutPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import InstallPWAButton from './components/common/InstallPWAButton';
 import ManualInstallModal from './components/common/ManualInstallModal';
 import QRCodeModal from './components/common/QRCodeModal';
@@ -80,6 +81,7 @@ const App: FC = () => {
                     <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
                     <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
                     <Route path="/logout" element={<LogoutPage />} />
+                    <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
 
                     <Route path="/agenda" element={<PrivateRoute><AgendaPage /></PrivateRoute>} />
                     <Route path="/admin" element={<AdminRoute><AdminPage /></PrivateRoute>} />

@@ -199,6 +199,11 @@ const RegisterPage: FC = () => {
                     <p className="font-bold">Realizado por:</p>
                     <p>Esteban García. - Para uso exclusivo de Telecom Argentina S.A.</p>
                 </div>
+                <div className="mt-2">
+                    <Link to="/privacy-policy" className="text-gray-400 hover:text-white underline transition-colors">
+                        Política de Privacidad
+                    </Link>
+                </div>
             </footer>
             <style>{`
                 .input-style {

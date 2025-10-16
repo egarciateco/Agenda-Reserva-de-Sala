@@ -1,45 +1,43 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reserva de Sala de TELECOM</title>
-  
-  <link rel="manifest" href="/manifest.json">
-  <link rel="icon" href="/favicon.ico">
-  <link rel="apple-touch-icon" href="https://i.postimg.cc/Hss2rxB2/IMAGEN-SITE.png">
-  <meta name="theme-color" content="#2563eb">
+// Import types for TypeScript, but don't import runtime code.
+import type firebaseNs from 'firebase/compat/app';
+import 'firebase/compat/auth';
+import 'firebase/compat/firestore';
 
-  <!-- Open Graph / Facebook -->
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://reservalasala-c176c.firebaseapp.com">
-  <meta property="og:title" content="Reserva de Sala de TELECOM">
-  <meta property="og:description" content="Agenda de reservas para salas de reuniones en Telecom.">
-  <meta property="og:image" content="https://i.postimg.cc/Hss2rxB2/IMAGEN-SITE.png">
+// Cast the global window object to access firebase.
+// This is necessary because we are loading Firebase via a script tag, not as a module.
+const firebase = (window as any).firebase as typeof firebaseNs;
 
-  <!-- Twitter -->
-  <meta property="twitter:card" content="summary_large_image">
-  <meta property="twitter:url" content="https://reservalasala-c176c.firebaseapp.com">
-  <meta property="twitter:title" content="Reserva de Sala de TELECOM">
-  <meta property="twitter:description" content="Agenda de reservas para salas de reuniones en Telecom.">
-  <meta property="twitter:image" content="https://i.postimg.cc/Hss2rxB2/IMAGEN-SITE.png">
+if (!firebase) {
+    throw new Error("Firebase SDK not loaded. Make sure the script tags are in your index.html.");
+}
 
-  <script type="importmap">
-  {
-    "imports": {
-      "react": "https://aistudiocdn.com/react@^19.2.0",
-      "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-      "react/": "https://aistudiocdn.com/react@^19.2.0/",
-      "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.4",
-      "react-hot-toast": "https://aistudiocdn.com/react-hot-toast@^2.6.0",
-      "firebase/": "https://aistudiocdn.com/firebase@^12.4.0/"
+// La configuración de Firebase ahora se construye a partir de variables de entorno.
+// Estas variables deben estar configuradas en el entorno de despliegue para que la app se conecte a Firebase.
+const firebaseConfig = {
+  apiKey: process.env.FIREBASE_API_KEY,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.FIREBASE_APP_ID
+};
+
+// Se verifica que la configuración sea válida antes de inicializar para evitar errores.
+if (!firebaseConfig.projectId || !firebaseConfig.apiKey) {
+    console.error("La configuración de Firebase está incompleta. Asegúrate de que todas las variables de entorno FIREBASE_* estén definidas.");
+    // Esto evita que la app intente inicializarse con una configuración vacía.
+} else {
+    // Inicializa Firebase solo si no ha sido inicializado
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
     }
-  }
-  </script>
-</head>
-<body>
-  <noscript>Necesitas habilitar JavaScript para ejecutar esta aplicación.</noscript>
-  <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
-</body>
-</html>
+}
+
+
+// Exporta los servicios de Firebase para ser usados en toda la aplicación
+export const auth = firebase.auth();
+export const db = firebase.firestore();
+
+// Exporta el tipo de usuario de Firebase para consistencia
+// El tipo correcto con la librería de compatibilidad es `firebase.User`.
+export type FirebaseUser = firebaseNs.User;
