@@ -97,7 +97,7 @@ const BookingModal: FC<BookingModalProps> = ({ isOpen, onClose, selectedSlot, ex
 
 
 const AgendaPage: FC = () => {
-    const { salas, bookings, siteImageUrl, users } = useAppContext();
+    const { salas, bookings, siteImageUrl, users, backgroundImageUrl } = useAppContext();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedSalaId, setSelectedSalaId] = useState<string>('');
     const [modalSlot, setModalSlot] = useState<{ sala: Sala; date: Date; time: number } | null>(null);
@@ -151,98 +151,99 @@ const AgendaPage: FC = () => {
     const selectedSala = salas.find(s => s.id === selectedSalaId);
 
     return (
-        <div className="absolute inset-0 flex flex-col bg-gray-900/80 text-white">
-            <Header />
-            <main className="flex-1 p-2 sm:p-4 md:p-6 overflow-auto">
-                <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                    <div className="flex items-center gap-6">
-                        {/* Larger Image */}
-                        <img src={siteImageUrl} alt="Site" className="rounded-lg object-cover w-24 h-24 hidden sm:block" />
-
-                        {/* Larger Nav Controls */}
-                        <div className="flex items-center gap-3">
-                            <button onClick={handlePrevWeek} title="Semana anterior" className="p-3 rounded-full hover:bg-gray-700 text-3xl font-bold flex items-center justify-center">&lt;</button>
-                            <div className="text-center">
-                                <button onClick={handleToday} className="text-base px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-semibold">Hoy</button>
-                                <h2 className="text-lg sm:text-xl font-bold mt-2 whitespace-nowrap">Semana del {formatDate(weekStartDate)}</h2>
+        <div 
+            className="h-screen bg-cover bg-center bg-fixed"
+            style={{ backgroundImage: `url(${backgroundImageUrl})` }}
+        >
+            <div className="flex flex-col h-full bg-gray-900/80 text-white">
+                <Header />
+                <main className="flex-1 p-2 sm:p-4 md:p-6 overflow-auto">
+                    <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                        <div className="flex items-center gap-6">
+                            <img src={siteImageUrl} alt="Site" className="rounded-lg object-cover w-24 h-24 hidden sm:block" />
+                            <div className="flex items-center gap-3">
+                                <button onClick={handlePrevWeek} title="Semana anterior" className="p-3 rounded-full hover:bg-gray-700 text-3xl font-bold flex items-center justify-center">&lt;</button>
+                                <div className="text-center">
+                                    <button onClick={handleToday} className="text-base px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-semibold">Hoy</button>
+                                    <h2 className="text-lg sm:text-xl font-bold mt-2 whitespace-nowrap">Semana del {formatDate(weekStartDate)}</h2>
+                                </div>
+                                <button onClick={handleNextWeek} title="Semana siguiente" className="p-3 rounded-full hover:bg-gray-700 text-3xl font-bold flex items-center justify-center">&gt;</button>
                             </div>
-                            <button onClick={handleNextWeek} title="Semana siguiente" className="p-3 rounded-full hover:bg-gray-700 text-3xl font-bold flex items-center justify-center">&gt;</button>
                         </div>
+
+                        {salas.length > 0 && (
+                            <div className="w-full md:w-auto md:max-w-xs">
+                                <select value={selectedSalaId} onChange={e => setSelectedSalaId(e.target.value)} className="bg-gray-800 border border-gray-600 rounded-md p-2 w-full text-sm">
+                                    {salas.map(sala => <option key={sala.id} value={sala.id}>{sala.name}</option>)}
+                                </select>
+                                {selectedSala && <div className="mt-1 text-xs text-gray-400 w-full text-right"><p>{selectedSala.address}</p></div>}
+                            </div>
+                        )}
                     </div>
 
-                    {/* Sala Selector on the right */}
-                    {salas.length > 0 && (
-                        <div className="w-full md:w-auto md:max-w-xs">
-                            <select value={selectedSalaId} onChange={e => setSelectedSalaId(e.target.value)} className="bg-gray-800 border border-gray-600 rounded-md p-2 w-full text-sm">
-                                {salas.map(sala => <option key={sala.id} value={sala.id}>{sala.name}</option>)}
-                            </select>
-                            {selectedSala && <div className="mt-1 text-xs text-gray-400 w-full text-right"><p>{selectedSala.address}</p></div>}
-                        </div>
-                    )}
-                </div>
+                    <div className="overflow-x-auto">
+                        <div className="grid grid-cols-[auto,repeat(5,minmax(80px,1fr))] min-w-[700px]">
+                            <div className="text-center font-bold sticky left-0 bg-gray-900/80 z-10"></div>
+                            {DAYS_OF_WEEK.map((day, i) => (
+                                <div key={day} className="text-center font-bold p-2 border-b border-gray-700">
+                                    <p className="text-xs sm:text-sm">{day}</p>
+                                    <p className="text-xs text-gray-400">{weekDates[i].toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}</p>
+                                </div>
+                            ))}
 
-                <div className="overflow-x-auto">
-                    <div className="grid grid-cols-[auto,repeat(5,minmax(80px,1fr))] min-w-[700px]">
-                        <div className="text-center font-bold sticky left-0 bg-gray-900/80 z-10"></div>
-                        {DAYS_OF_WEEK.map((day, i) => (
-                            <div key={day} className="text-center font-bold p-2 border-b border-gray-700">
-                                <p className="text-xs sm:text-sm">{day}</p>
-                                <p className="text-xs text-gray-400">{weekDates[i].toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}</p>
-                            </div>
-                        ))}
+                            {TIME_SLOTS.map(time => (
+                                <>
+                                    <div className="text-center text-xs p-2 border-r border-gray-700 sticky left-0 bg-gray-900/80 z-10 flex items-center justify-center">{`${time}:00`}</div>
+                                    {weekDates.map((date, dayIndex) => {
+                                        const key = `${formatDateForInput(date)}-${time}`;
+                                        const booking = bookingsBySlot.get(key);
+                                        const userOfBooking = booking ? users.find(u => u.id === booking.userId) : null;
+                                        const isStartOfBooking = booking && booking.startTime === time;
+                                        const isPast = date < new Date(new Date().toDateString());
+                                        const cellClasses = `relative h-16 border-b border-r border-gray-700 transition-colors ${ isPast ? 'bg-gray-800 opacity-50' : booking ? '' : 'hover:bg-blue-900 cursor-pointer'}`;
+                                        
+                                        if (isStartOfBooking) {
+                                            return (
+                                                <div
+                                                    key={key}
+                                                    className={`${cellClasses} bg-green-800/80 p-1 flex flex-col justify-center items-center text-center`}
+                                                    onClick={() => !isPast && handleCellClick(selectedSala!, date, time)}
+                                                    style={{ gridRowEnd: `span ${booking.duration}` }}
+                                                >
+                                                    <p className="text-xs font-semibold break-words">{userOfBooking ? `${formatUserText(userOfBooking.firstName)} ${formatUserText(userOfBooking.lastName.charAt(0))}.` : 'Reservado'}</p>
+                                                </div>
+                                            );
+                                        }
 
-                        {TIME_SLOTS.map(time => (
-                            <>
-                                <div className="text-center text-xs p-2 border-r border-gray-700 sticky left-0 bg-gray-900/80 z-10 flex items-center justify-center">{`${time}:00`}</div>
-                                {weekDates.map((date, dayIndex) => {
-                                    const key = `${formatDateForInput(date)}-${time}`;
-                                    const booking = bookingsBySlot.get(key);
-                                    const userOfBooking = booking ? users.find(u => u.id === booking.userId) : null;
-                                    const isStartOfBooking = booking && booking.startTime === time;
-                                    const isPast = date < new Date(new Date().toDateString());
-                                    const cellClasses = `relative h-16 border-b border-r border-gray-700 transition-colors ${ isPast ? 'bg-gray-800 opacity-50' : booking ? '' : 'hover:bg-blue-900 cursor-pointer'}`;
-                                    
-                                    if (isStartOfBooking) {
+                                        if (booking) return null; // This slot is covered by a multi-hour booking starting earlier
+                                        
                                         return (
                                             <div
                                                 key={key}
-                                                className={`${cellClasses} bg-green-800/80 p-1 flex flex-col justify-center items-center text-center`}
+                                                className={cellClasses}
                                                 onClick={() => !isPast && handleCellClick(selectedSala!, date, time)}
-                                                style={{ gridRowEnd: `span ${booking.duration}` }}
-                                            >
-                                                <p className="text-xs font-semibold break-words">{userOfBooking ? `${formatUserText(userOfBooking.firstName)} ${formatUserText(userOfBooking.lastName.charAt(0))}.` : 'Reservado'}</p>
-                                            </div>
+                                            ></div>
                                         );
-                                    }
-
-                                    if (booking) return null; // This slot is covered by a multi-hour booking starting earlier
-                                    
-                                    return (
-                                        <div
-                                            key={key}
-                                            className={cellClasses}
-                                            onClick={() => !isPast && handleCellClick(selectedSala!, date, time)}
-                                        ></div>
-                                    );
-                                })}
-                            </>
-                        ))}
+                                    })}
+                                </>
+                            ))}
+                        </div>
                     </div>
-                </div>
-            </main>
-            <BookingModal 
-                isOpen={!!modalSlot || !!viewingBooking} 
-                onClose={() => { setModalSlot(null); setViewingBooking(null); }} 
-                selectedSlot={modalSlot}
-                existingBooking={viewingBooking}
-            />
-            <style>{`
-            .animate-scale-in { animation: scale-in 0.2s ease-out forwards; }
-            @keyframes scale-in { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-            .sticky {
-                background-color: rgba(17, 24, 39, 0.8) !important;
-            }
-            `}</style>
+                </main>
+                <BookingModal 
+                    isOpen={!!modalSlot || !!viewingBooking} 
+                    onClose={() => { setModalSlot(null); setViewingBooking(null); }} 
+                    selectedSlot={modalSlot}
+                    existingBooking={viewingBooking}
+                />
+                <style>{`
+                .animate-scale-in { animation: scale-in 0.2s ease-out forwards; }
+                @keyframes scale-in { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+                .sticky {
+                    background-color: rgba(17, 24, 39, 0.8) !important;
+                }
+                `}</style>
+            </div>
         </div>
     );
 };

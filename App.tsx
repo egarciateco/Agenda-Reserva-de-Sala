@@ -70,33 +70,29 @@ const PublicRoute: FC<RouteProps> = ({ children }) => {
 
 
 const App: FC = () => {
-    const { backgroundImageUrl } = useAppContext();
-    
     return (
-        <div className="font-sans bg-gray-900" style={{ backgroundImage: `url(${backgroundImageUrl})`, backgroundSize: 'cover', backgroundAttachment: 'fixed', minHeight: '100vh' }}>
-            <BrowserRouter>
-                <Routes>
-                    <Route path="/" element={<PublicRoute><HomePage /></PublicRoute>} />
-                    <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
-                    <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
-                    <Route path="/logout" element={<LogoutPage />} />
-                    <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-                    <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+        <BrowserRouter>
+            <Routes>
+                <Route path="/" element={<PublicRoute><HomePage /></PublicRoute>} />
+                <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+                <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+                <Route path="/logout" element={<LogoutPage />} />
+                <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+                <Route path="/terms-of-service" element={<TermsOfServicePage />} />
 
-                    <Route path="/agenda" element={<PrivateRoute><AgendaPage /></PrivateRoute>} />
-                    <Route path="/admin" element={<AdminRoute><AdminPage /></PrivateRoute>} />
-                    
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-                <Toaster position="bottom-center" toastOptions={{
-                    style: { background: '#333', color: '#fff' },
-                }} />
-                <InstallPWAButton />
-                <ManualInstallModal />
-                <QRCodeModal />
-                <ConfirmationModal />
-            </BrowserRouter>
-        </div>
+                <Route path="/agenda" element={<PrivateRoute><AgendaPage /></PrivateRoute>} />
+                <Route path="/admin" element={<AdminRoute><AdminPage /></PrivateRoute>} />
+                
+                <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+            <Toaster position="bottom-center" toastOptions={{
+                style: { background: '#333', color: '#fff' },
+            }} />
+            <InstallPWAButton />
+            <ManualInstallModal />
+            <QRCodeModal />
+            <ConfirmationModal />
+        </BrowserRouter>
     );
 };
 
