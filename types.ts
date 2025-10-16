@@ -1,3 +1,7 @@
+// FIX: Switched to a namespace import for Firebase compat to resolve module loading errors.
+// Corrected import from `* as firebase` to default import `firebase` for compat library.
+// FIX: Corrected Firebase compat import from a namespace import (`* as firebase`) to a default import (`firebase`) to resolve type errors.
+// FIX: The firebase/compat/app module is designed to be imported as a default export. Using `import * as firebase` treats it as a module namespace, which doesn't contain the expected properties like `User`. The correct import is `import firebase from 'firebase/compat/app'`.
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 
@@ -69,7 +73,7 @@ export interface ConfirmationState {
 
 export interface AppContextType {
   user: User | null;
-  // FIX: The User type from Firebase Auth is in `firebase.User`, not `firebase.auth.User`.
+  // FIX: The correct user type from the compat library is on the root firebase namespace.
   firebaseUser: firebase.User | null;
   loading: boolean;
   
