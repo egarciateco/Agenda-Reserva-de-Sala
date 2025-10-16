@@ -1,4 +1,4 @@
-import type { FirebaseUser } from '../utils/firebase';
+import type { FirebaseUser } from './utils/firebase';
 
 // BeforeInstallPromptEvent is not a standard event type, so we define it here.
 export interface BeforeInstallPromptEvent extends Event {

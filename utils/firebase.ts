@@ -1,15 +1,6 @@
-// This file safely initializes Firebase using the global object provided by the CDN scripts.
-// This avoids ES module import issues that can occur in certain environments.
+import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
-// FIX: Import the firebase namespace type to correctly type the global firebase object.
-import type firebaseNamespace from 'firebase/compat/app';
-
-// Assert that the global firebase object is available.
-const firebase = (window as any).firebase as typeof firebaseNamespace;
-if (!firebase) {
-  throw new Error("Firebase is not loaded. Check the script tags in index.html.");
-}
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -30,7 +21,8 @@ if (!firebase.apps.length) {
 export const auth = firebase.auth();
 export const db = firebase.firestore();
 
-// Type export for use in other files
+// Type export for use in other files.
+// FIX: Corrected Firebase user type. The type is `firebase.User`, not `firebase.auth.User` with the compat library.
 export type FirebaseUser = firebase.User;
 
 // Enable offline persistence for a robust PWA experience.
