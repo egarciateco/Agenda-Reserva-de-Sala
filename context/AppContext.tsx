@@ -1,4 +1,5 @@
 
+
 import { createContext, useState, useEffect, FC, ReactNode } from 'react';
 import { toast } from 'react-hot-toast';
 import { auth, db } from '../utils/firebase';
@@ -11,50 +12,17 @@ import {
     DEFAULT_LOGO_URL, DEFAULT_BACKGROUND_URL, DEFAULT_HOME_BACKGROUND_URL, DEFAULT_SITE_IMAGE_URL,
     INITIAL_ADMIN_SECRET_CODE, INITIAL_SALAS, INITIAL_SECTORS, INITIAL_ROLES
 } from '../constants';
+// FIX: The User type is not a named export from 'firebase/auth' in the compat library.
+// The correct type is `firebase.User`, which is available after importing from 'firebase/compat/app'.
+import type firebase from 'firebase/compat/app';
 import { User as FirebaseUser } from 'firebase/auth';
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// --- Confirmation Modal (included here for simplicity) ---
-const ConfirmationModal: FC = () => {
-    const context = require('../hooks/useAppContext').useAppContext();
-    const { confirmationState, closeConfirmation } = context;
-    const [isConfirming, setIsConfirming] = useState(false);
-
-    const handleConfirm = async () => {
-        setIsConfirming(true);
-        try {
-            await confirmationState.onConfirm();
-        } finally {
-            setIsConfirming(false);
-            closeConfirmation();
-        }
-    };
-
-    if (!confirmationState.isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[12000] p-4">
-            <div className="bg-gray-800 p-8 rounded-lg shadow-xl text-white w-full max-w-md">
-                <h3 className="text-lg font-bold mb-4">Confirmar Acción</h3>
-                <p className="text-gray-300 mb-6">{confirmationState.message}</p>
-                <div className="flex justify-end gap-4">
-                    <button onClick={closeConfirmation} disabled={isConfirming} className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-md transition disabled:opacity-50">Cancelar</button>
-                    <button onClick={handleConfirm} disabled={isConfirming} className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md transition disabled:opacity-50">
-                        {isConfirming ? 'Confirmando...' : 'Confirmar'}
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
-// Attach the component to App.tsx via a dynamic import to avoid circular dependencies
-(AppContext as any).ConfirmationModal = ConfirmationModal;
-
-
 export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
     // State
-    const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+    // FIX: Use the correctly imported firebase.User type for the state.
+    const [firebaseUser, setFirebaseUser] = useState<firebase.User | null>(null);
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     
