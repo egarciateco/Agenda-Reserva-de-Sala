@@ -1,6 +1,6 @@
 import { createContext, useState, useEffect, FC, ReactNode } from 'react';
 import { toast } from 'react-hot-toast';
-import { auth, db } from '../utils/firebase';
+import { auth, db, FirebaseUser } from '../utils/firebase';
 import { getFirebaseErrorMessage } from '../utils/helpers';
 import { 
     AppContextType, User, Booking, Sala, Sector, Role, Settings, 
@@ -10,19 +10,13 @@ import {
     DEFAULT_LOGO_URL, DEFAULT_BACKGROUND_URL, DEFAULT_HOME_BACKGROUND_URL, DEFAULT_SITE_IMAGE_URL,
     INITIAL_ADMIN_SECRET_CODE, INITIAL_SALAS, INITIAL_SECTORS, INITIAL_ROLES
 } from '../constants';
-// FIX: Switched to a namespace import for Firebase compat to resolve module loading errors.
-// Corrected import from `* as firebase` to default import `firebase` for compat library.
-// FIX: Corrected Firebase compat import from a namespace import (`* as firebase`) to a default import (`firebase`) to resolve type errors.
-// FIX: The firebase/compat/app module is designed to be imported as a default export. Using `import * as firebase` treats it as a module namespace, which doesn't contain the expected properties like `User`. The correct import is `import firebase from 'firebase/compat/app'`.
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/auth';
+
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
     // State
-    // FIX: The correct user type from the compat library is on the root firebase namespace.
-    const [firebaseUser, setFirebaseUser] = useState<firebase.User | null>(null);
+    const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     
