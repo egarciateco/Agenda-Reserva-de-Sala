@@ -1,5 +1,7 @@
 import { createContext, useState, useEffect, FC, ReactNode } from 'react';
 import { toast } from 'react-hot-toast';
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/auth';
 import { auth, db } from '../utils/firebase';
 import { getFirebaseErrorMessage } from '../utils/helpers';
 import { 
@@ -11,16 +13,12 @@ import {
     INITIAL_ADMIN_SECRET_CODE, INITIAL_SALAS, INITIAL_SECTORS, INITIAL_ROLES
 } from '../constants';
 
-// Ya no es necesario importar `firebase` aquí, ya que los tipos se manejan en `types.ts`
-// y la inicialización en `utils/firebase.ts`.
-
 export const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
     // State
-    // El tipo `firebase.auth.User` ahora es reconocido globalmente gracias a la declaración en `types.ts`.
-    // FIX: Use `firebase.auth.User` for the Firebase user type from the compat library.
-    const [firebaseUser, setFirebaseUser] = useState<firebase.auth.User | null>(null);
+    // FIX: Corrected Firebase user type from `firebase.auth.User` to `firebase.User`.
+    const [firebaseUser, setFirebaseUser] = useState<firebase.User | null>(null);
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     
