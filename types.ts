@@ -69,7 +69,7 @@ export interface ConfirmationState {
 
 export interface AppContextType {
   user: User | null;
-  // FIX: Corrected Firebase user type from `firebase.auth.User` to `firebase.User`.
+  // FIX: The User type from Firebase Auth is in `firebase.User`, not `firebase.auth.User`.
   firebaseUser: firebase.User | null;
   loading: boolean;
   

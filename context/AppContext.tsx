@@ -17,7 +17,7 @@ export const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
     // State
-    // FIX: Corrected Firebase user type from `firebase.auth.User` to `firebase.User`.
+    // FIX: The User type from Firebase Auth is in `firebase.User`, not `firebase.auth.User`.
     const [firebaseUser, setFirebaseUser] = useState<firebase.User | null>(null);
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
