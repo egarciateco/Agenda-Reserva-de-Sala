@@ -1,6 +1,7 @@
+
 import { useState, useMemo, FC, ChangeEvent } from 'react';
 import { useAppContext } from '../../hooks/useAppContext';
-import { Booking } from '../../types';
+import { Booking, User } from '../../types';
 import { formatUserText, formatDateForInput } from '../../utils/helpers';
 import { TIME_SLOTS } from '../../constants';
 
@@ -40,6 +41,7 @@ const BookingsManager: FC = () => {
                 }
 
                 if (filterUser && booking.userId !== filterUser) return false;
+                // FIX: Check if user exists before accessing sector property
                 if (filterSector && user?.sector !== filterSector) return false;
                 if (filterSala && booking.roomId !== filterSala) return false;
                 if (filterStartDate && bookingDate < new Date(filterStartDate + 'T00:00:00')) return false;
@@ -75,6 +77,7 @@ const BookingsManager: FC = () => {
     
     const handleDelete = (booking: Booking) => {
         const user = userMap.get(booking.userId);
+        // FIX: Check if user exists before accessing properties
         const userName = user ? `${formatUserText(user.lastName)}, ${formatUserText(user.firstName)}` : 'Usuario Desconocido';
         const bookingDate = new Date(booking.date + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
         const message = `¿Seguro que quieres eliminar la reserva de ${userName} para el ${bookingDate} a las ${booking.startTime}:00? Esta acción es irreversible.`;

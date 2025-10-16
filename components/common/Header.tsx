@@ -1,71 +1,76 @@
-import { FC } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+
+import { FC, useState, useRef, useEffect } from 'react';
+import { NavLink, Link } from 'react-router-dom';
 import { useAppContext } from '../../hooks/useAppContext';
+import { formatUserText } from '../../utils/helpers';
 
 const Header: FC = () => {
-    const { currentUser, logoUrl, isPwaInstallable, isStandalone, triggerPwaInstall, openQrModal } = useAppContext();
-    const navigate = useNavigate();
-    const location = useLocation();
+    const { user, logoUrl, logout, openQrModal, openManualInstallModal, isPwaInstallable } = useAppContext();
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
 
-    const isAdminPage = location.pathname.startsWith('/admin');
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setIsMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    if (!user) return null;
+
+    const isAdmin = user.role === 'Administrador';
 
     return (
-        <header className="bg-gray-900 bg-opacity-70 text-white p-4 shadow-md flex justify-between items-center z-20 relative">
+        <header className="bg-black bg-opacity-80 backdrop-blur-sm shadow-lg text-white p-4 flex justify-between items-center z-50">
             <Link to="/agenda">
                 <img src={logoUrl} alt="TELECOM Logo" className="h-10 object-contain" />
             </Link>
-            {currentUser && (
-                <div className="flex items-center gap-1 md:gap-3">
-                    {currentUser.role === 'Administrador' && !isAdminPage && (
-                        <Link to="/admin" className="header-button bg-purple-600 hover:bg-purple-700">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0012 11z" clipRule="evenodd" />
-                            </svg>
-                            <span className="hidden md:inline">Panel Admin</span>
-                        </Link>
-                    )}
-                    
-                    {isStandalone ? (
-                         <div className="header-button bg-green-600 cursor-default">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            <span className="hidden md:inline">App Instalada</span>
+            
+            <div className="flex items-center gap-4">
+                <nav className="hidden md:flex items-center gap-6">
+                    <NavLink to="/agenda" className={({ isActive }) => `text-sm font-medium ${isActive ? 'text-blue-400' : 'text-gray-300 hover:text-white'}`}>Agenda</NavLink>
+                    {isAdmin && <NavLink to="/admin" className={({ isActive }) => `text-sm font-medium ${isActive ? 'text-blue-400' : 'text-gray-300 hover:text-white'}`}>Admin</NavLink>}
+                </nav>
+
+                <div className="relative" ref={menuRef}>
+                    <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 p-2 rounded-full transition-colors">
+                        <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm">
+                            {user.firstName.charAt(0).toUpperCase()}{user.lastName.charAt(0).toUpperCase()}
                         </div>
-                    ) : (
-                        <button
-                            onClick={triggerPwaInstall}
-                            disabled={!isPwaInstallable}
-                            className={`header-button ${
-                                isPwaInstallable
-                                ? 'bg-blue-600 hover:bg-blue-700'
-                                : 'bg-gray-500 cursor-not-allowed text-gray-300'
-                            }`}
-                            title={isPwaInstallable ? 'Instalar la aplicación en tu dispositivo' : 'La instalación no está disponible en este entorno de desarrollo. En un sitio web publicado, este botón se activará.'}
-                        >
-                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                            </svg>
-                            <span className="hidden md:inline">Instalar App</span>
-                        </button>
+                        <span className="hidden lg:inline text-sm font-semibold">{formatUserText(user.firstName)} {formatUserText(user.lastName)}</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 hidden lg:inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                    {isMenuOpen && (
+                        <div className="absolute right-0 mt-2 w-56 bg-gray-900 border border-gray-700 rounded-md shadow-lg py-1 z-50 animate-fade-in-down">
+                             <div className="px-4 py-2 border-b border-gray-700">
+                                <p className="text-sm font-bold truncate">{formatUserText(user.firstName)} {formatUserText(user.lastName)}</p>
+                                <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                            </div>
+                            <div className="md:hidden">
+                                <Link to="/agenda" onClick={() => setIsMenuOpen(false)} className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-800">Agenda</Link>
+                                {isAdmin && <Link to="/admin" onClick={() => setIsMenuOpen(false)} className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-800">Admin</Link>}
+                                <div className="border-t border-gray-700 my-1"></div>
+                            </div>
+                            <button onClick={() => { openQrModal(); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-800">Compartir App</button>
+                            {!isPwaInstallable && (
+                                <button onClick={() => { openManualInstallModal(); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-800">Instalar App</button>
+                            )}
+                            <div className="border-t border-gray-700 my-1"></div>
+                            <button onClick={() => { logout(); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-800">Cerrar Sesión</button>
+                        </div>
                     )}
-
-                    <button onClick={openQrModal} className="header-button bg-indigo-600 hover:bg-indigo-700">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                           <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-                        </svg>
-                        <span className="hidden md:inline">Compartir</span>
-                    </button>
-
-                    <button onClick={() => navigate('/logout')} className="header-button bg-red-600 hover:bg-red-700">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                        </svg>
-                        <span className="hidden md:inline">Salir</span>
-                    </button>
                 </div>
-            )}
-            <style>{`.header-button { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; border-radius: 0.375rem; font-size: 0.875rem; font-weight: 500; transition: background-color 0.2s; } @media (min-width: 768px) { .header-button { padding: 0.5rem 1rem; } }`}</style>
+            </div>
+            <style>{`
+                @keyframes fade-in-down {
+                    from { opacity: 0; transform: translateY(-10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .animate-fade-in-down { animation: fade-in-down 0.2s ease-out forwards; }
+            `}</style>
         </header>
     );
 };

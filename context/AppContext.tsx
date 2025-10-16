@@ -1,345 +1,290 @@
-import { createContext, useState, useEffect, FC, ReactNode, useRef } from 'react';
-import { 
-    AppContextType, User, Sector, Role, Sala, Booking, AppSettings, 
-    ToastMessage, ConfirmationState, ConfirmationOptions 
-} from '../types';
+
+import { createContext, useState, useEffect, FC, ReactNode } from 'react';
+import { toast } from 'react-hot-toast';
 import { auth, db } from '../utils/firebase';
 import { getFirebaseErrorMessage } from '../utils/helpers';
-import emailjs from '@emailjs/browser';
 import { 
-    INITIAL_ADMIN_SECRET_CODE, INITIAL_SALAS, INITIAL_ROLES, INITIAL_SECTORS,
+    AppContextType, User, Booking, Sala, Sector, Role, Settings, 
+    BeforeInstallPromptEvent, ConfirmationState 
+} from '../types';
+import { 
     DEFAULT_LOGO_URL, DEFAULT_BACKGROUND_URL, DEFAULT_HOME_BACKGROUND_URL, DEFAULT_SITE_IMAGE_URL,
-    EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, EMAILJS_PUBLIC_KEY
+    INITIAL_ADMIN_SECRET_CODE, INITIAL_SALAS, INITIAL_SECTORS, INITIAL_ROLES
 } from '../constants';
+import { User as FirebaseUser } from 'firebase/auth';
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
 
-interface AppProviderProps {
-    children: ReactNode;
-}
+// --- Confirmation Modal (included here for simplicity) ---
+const ConfirmationModal: FC = () => {
+    const context = require('../hooks/useAppContext').useAppContext();
+    const { confirmationState, closeConfirmation } = context;
+    const [isConfirming, setIsConfirming] = useState(false);
 
-export const AppProvider: FC<AppProviderProps> = ({ children }) => {
-    // STATE DECLARATIONS
-    const [currentUser, setCurrentUser] = useState<User | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [users, setUsers] = useState<User[]>([]);
-    const [sectors, setSectors] = useState<Sector[]>([]);
-    const [roles, setRoles] = useState<Role[]>([]);
-    const [salas, setSalas] = useState<Sala[]>([]);
+    const handleConfirm = async () => {
+        setIsConfirming(true);
+        try {
+            await confirmationState.onConfirm();
+        } finally {
+            setIsConfirming(false);
+            closeConfirmation();
+        }
+    };
+
+    if (!confirmationState.isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[12000] p-4">
+            <div className="bg-gray-800 p-8 rounded-lg shadow-xl text-white w-full max-w-md">
+                <h3 className="text-lg font-bold mb-4">Confirmar Acción</h3>
+                <p className="text-gray-300 mb-6">{confirmationState.message}</p>
+                <div className="flex justify-end gap-4">
+                    <button onClick={closeConfirmation} disabled={isConfirming} className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-md transition disabled:opacity-50">Cancelar</button>
+                    <button onClick={handleConfirm} disabled={isConfirming} className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md transition disabled:opacity-50">
+                        {isConfirming ? 'Confirmando...' : 'Confirmar'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+// Attach the component to App.tsx via a dynamic import to avoid circular dependencies
+(AppContext as any).ConfirmationModal = ConfirmationModal;
+
+
+export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
+    // State
+    const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+    const [user, setUser] = useState<User | null>(null);
+    const [loading, setLoading] = useState(true);
+    
+    // Data collections
     const [bookings, setBookings] = useState<Booking[]>([]);
-    const [settings, setSettings] = useState<AppSettings>({
+    const [users, setUsers] = useState<User[]>([]);
+    const [salas, setSalas] = useState<Sala[]>(INITIAL_SALAS);
+    const [sectors, setSectors] = useState<Sector[]>(INITIAL_SECTORS);
+    const [roles, setRoles] = useState<Role[]>(INITIAL_ROLES);
+    const [settings, setSettings] = useState<Settings>({
+        adminSecretCode: INITIAL_ADMIN_SECRET_CODE,
         logoUrl: DEFAULT_LOGO_URL,
         backgroundImageUrl: DEFAULT_BACKGROUND_URL,
         homeBackgroundImageUrl: DEFAULT_HOME_BACKGROUND_URL,
-        siteImageUrl: DEFAULT_SITE_IMAGE_URL,
-        adminSecretCode: INITIAL_ADMIN_SECRET_CODE,
-        lastBookingDuration: 1,
+        siteImageUrl: DEFAULT_SITE_IMAGE_URL
     });
-    const [toasts, setToasts] = useState<ToastMessage[]>([]);
-    const [confirmation, setConfirmation] = useState<ConfirmationState>({ isOpen: false, message: '' });
-    const onConfirmRef = useRef<(() => void) | null>(null);
-    const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
-    const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
-    const serviceWorkerRegistrationRef = useRef<ServiceWorkerRegistration | null>(null);
+
+    // UI State
+    const [confirmationState, setConfirmationState] = useState<ConfirmationState>({ isOpen: false, message: '', onConfirm: () => {} });
     const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+    const [isManualInstallModalOpen, setIsManualInstallModalOpen] = useState(false);
     
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-    const pwaInstalledOnce = localStorage.getItem('pwaInstalled') === 'true';
+    // PWA State
+    const [pwaInstallPrompt, setPwaInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+    const [pwaInstalledOnce, setPwaInstalledOnce] = useState(localStorage.getItem('pwaInstalled') === 'true');
 
-    // Derived state for PWA installability. This is more robust than a separate state.
-    const isPwaInstallable = !!deferredInstallPrompt && !isStandalone;
 
-    // --- PWA & Service Worker Logic ---
-    useEffect(() => {
-        const handleInstallPrompt = (e: Event) => {
-            console.log('✅ Evento "beforeinstallprompt" detectado. La app es instalable.');
-            e.preventDefault();
-            setDeferredInstallPrompt(e);
-        };
-        
-        const handleSwUpdate = (event: Event) => {
-            const registration = (event as CustomEvent).detail;
-            serviceWorkerRegistrationRef.current = registration;
-            setIsUpdateAvailable(true);
-        };
-
-        window.addEventListener('beforeinstallprompt', handleInstallPrompt);
-        window.addEventListener('sw-update', handleSwUpdate);
-        
-        return () => {
-            window.removeEventListener('beforeinstallprompt', handleInstallPrompt);
-            window.removeEventListener('sw-update', handleSwUpdate);
-        };
-    }, []);
-
-    const triggerPwaInstall = () => {
-        if (deferredInstallPrompt) {
-            deferredInstallPrompt.prompt();
-            deferredInstallPrompt.userChoice.then((choiceResult: { outcome: string }) => {
-                if (choiceResult.outcome === 'accepted') {
-                    addToast('¡Aplicación instalada con éxito!', 'success');
-                    localStorage.setItem('pwaInstalled', 'true');
-                }
-                // The prompt can only be used once. Clear it.
-                setDeferredInstallPrompt(null);
-            });
-        }
-    };
-    
-    const applyUpdate = () => {
-        if (serviceWorkerRegistrationRef.current?.waiting) {
-            serviceWorkerRegistrationRef.current.waiting.postMessage({ type: 'SKIP_WAITING' });
-            setIsUpdateAvailable(false);
-            // The page will reload once the new service worker is active.
-            let refreshing = false;
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-                if (!refreshing) {
-                    window.location.reload();
-                    refreshing = true;
-                }
-            });
+    const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+        switch (type) {
+            case 'success': toast.success(message); break;
+            case 'error': toast.error(message); break;
+            default: toast(message); break;
         }
     };
 
-    // --- Authentication ---
+    // --- Auth ---
     useEffect(() => {
-        const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
-            if (firebaseUser) {
-                const userDoc = await db.collection('users').doc(firebaseUser.uid).get();
+        const unsubscribe = auth.onAuthStateChanged(async (fbUser) => {
+            setFirebaseUser(fbUser);
+            if (fbUser) {
+                const userDoc = await db.collection('users').doc(fbUser.uid).get();
                 if (userDoc.exists) {
-                    setCurrentUser({ id: userDoc.id, ...userDoc.data() } as User);
+                    setUser({ id: userDoc.id, ...userDoc.data() } as User);
                 } else {
-                    // User exists in auth but not in Firestore, likely an error state.
-                    // Log them out to prevent being stuck in a broken state.
-                    await auth.signOut();
-                    setCurrentUser(null);
+                    setUser(null); // User exists in auth but not firestore, log them out
+                    auth.signOut();
                 }
             } else {
-                setCurrentUser(null);
+                setUser(null);
             }
-            setIsLoading(false);
+            setLoading(false);
         });
-        return () => unsubscribe();
+        return unsubscribe;
     }, []);
-
-    // --- Firestore Data Fetching ---
-    useEffect(() => {
-        const collections = ['users', 'sectors', 'roles', 'salas', 'bookings'];
-        const setters: any = {
-            users: setUsers,
-            sectors: setSectors,
-            roles: setRoles,
-            salas: setSalas,
-            bookings: setBookings,
-        };
-        const unsubscribes = collections.map(col =>
-            db.collection(col).onSnapshot(snapshot => {
-                const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                setters[col](data);
-            }, error => {
-                console.error(`Error fetching ${col}:`, error);
-                addToast(`No se pudo cargar ${col}. La aplicación podría mostrar datos desactualizados.`, 'error');
-            })
-        );
-        
-        // Settings listener
-        const unsubSettings = db.collection('settings').doc('config').onSnapshot(doc => {
-            if (doc.exists) {
-                setSettings(prev => ({ ...prev, ...doc.data() }));
-            }
-        });
-        unsubscribes.push(unsubSettings);
-
-        return () => unsubscribes.forEach(unsub => unsub());
-    }, []);
-
-    // --- Functions ---
-    const addToast = (message: string, type: 'success' | 'error') => {
-        const id = Date.now();
-        setToasts(prev => [...prev, { id, message, type }]);
-    };
-    const removeToast = (id: number) => setToasts(prev => prev.filter(t => t.id !== id));
-
-    const showConfirmation = (message: string, onConfirm: () => void, options: ConfirmationOptions = {}) => {
-        onConfirmRef.current = onConfirm;
-        setConfirmation({ isOpen: true, message, ...options });
-    };
-    const handleConfirm = () => {
-        onConfirmRef.current?.();
-        setConfirmation({ isOpen: false, message: '' });
-    };
-    const handleCancel = () => setConfirmation({ isOpen: false, message: '' });
 
     const login = async (email: string, pass: string) => {
         try {
             await auth.signInWithEmailAndPassword(email, pass);
+            addToast('¡Bienvenido de nuevo!', 'success');
         } catch (error) {
             addToast(getFirebaseErrorMessage(error), 'error');
             throw error;
         }
     };
-    const logout = () => auth.signOut();
 
     const register = async (userData: Omit<User, 'id'>, pass: string) => {
         try {
-            const userCredential = await auth.createUserWithEmailAndPassword(userData.email, pass);
-            if (userCredential.user) {
-                await db.collection('users').doc(userCredential.user.uid).set(userData);
+            const { user: newFirebaseUser } = await auth.createUserWithEmailAndPassword(userData.email, pass);
+            if (!newFirebaseUser) throw new Error('Failed to create user.');
+            
+            const newUser: Omit<User, 'id'> = {
+                ...userData,
+                email: userData.email.toLowerCase(),
+            };
+
+            await db.collection('users').doc(newFirebaseUser.uid).set(newUser);
+            // The onAuthStateChanged listener will handle setting the user state.
+        } catch (error) {
+            addToast(getFirebaseErrorMessage(error), 'error');
+            throw error;
+        }
+    };
+    
+    const logout = () => {
+        auth.signOut();
+    };
+
+    // --- Firestore Listeners ---
+    useEffect(() => {
+        const collections = ['salas', 'sectors', 'roles', 'bookings', 'users', 'settings'];
+        const setters:any = {
+            salas: (data: Sala[]) => setSalas(data.length > 0 ? data : INITIAL_SALAS),
+            sectors: (data: Sector[]) => setSectors(data.length > 0 ? data : INITIAL_SECTORS),
+            roles: (data: Role[]) => setRoles(data.length > 0 ? data : INITIAL_ROLES),
+            bookings: setBookings,
+            users: setUsers,
+            settings: (data: Settings[]) => {
+                if (data.length > 0 && data[0]) {
+                    setSettings(prev => ({ ...prev, ...data[0] }));
+                }
             }
-        } catch (error) {
-            addToast(getFirebaseErrorMessage(error), 'error');
-            throw error;
-        }
+        };
+
+        const unsubscribers = collections.map(col => 
+            db.collection(col).onSnapshot(
+                snapshot => {
+                    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setters[col](data);
+                },
+                error => {
+                    console.error(`Error fetching ${col}: `, error);
+                    addToast(`Error al cargar ${col}. Podrías ver datos desactualizados.`, 'error');
+                }
+            )
+        );
+        return () => unsubscribers.forEach(unsub => unsub());
+    }, []);
+
+    // --- Generic CRUD Factory ---
+    const createCrudFunctions = <T extends { id: string }>(collectionName: string) => ({
+        add: async (data: Omit<T, 'id'>) => db.collection(collectionName).add(data),
+        update: async (item: T) => db.collection(collectionName).doc(item.id).update(item),
+        delete: async (id: string) => db.collection(collectionName).doc(id).delete(),
+    });
+
+    const salaCRUD = createCrudFunctions<Sala>('salas');
+    const sectorCRUD = createCrudFunctions<Sector>('sectors');
+    const roleCRUD = createCrudFunctions<Role>('roles');
+    const userCRUD = createCrudFunctions<User>('users');
+    const bookingCRUD = createCrudFunctions<Booking>('bookings');
+
+
+    // --- PWA Installation Logic ---
+    useEffect(() => {
+        const handleBeforeInstallPrompt = (e: Event) => {
+            e.preventDefault();
+            setPwaInstallPrompt(e as BeforeInstallPromptEvent);
+        };
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    }, []);
+
+    const triggerPwaInstall = () => {
+        if (!pwaInstallPrompt) return;
+        pwaInstallPrompt.prompt();
+        pwaInstallPrompt.userChoice.then(choiceResult => {
+            if (choiceResult.outcome === 'accepted') {
+                addToast('¡Aplicación instalada con éxito!', 'success');
+                localStorage.setItem('pwaInstalled', 'true');
+                setPwaInstalledOnce(true);
+            }
+            setPwaInstallPrompt(null);
+        });
     };
     
-    // Generic function to add a document to a collection
-    const addDocument = async (collection: string, data: object, successMsg: string) => {
-        try {
-            await db.collection(collection).add(data);
-            addToast(successMsg, 'success');
-        } catch (error) {
-            addToast(getFirebaseErrorMessage(error), 'error');
-            throw error;
-        }
-    };
-
-    // Generic function to update a document in a collection
-    const updateDocument = async (collection: string, docId: string, data: object, successMsg: string) => {
-        try {
-            await db.collection(collection).doc(docId).update(data);
-            addToast(successMsg, 'success');
-        } catch (error) {
-            addToast(getFirebaseErrorMessage(error), 'error');
-            throw error;
-        }
-    };
-
-    // Generic function to delete a document from a collection
-    const deleteDocument = async (collection: string, docId: string, successMsg: string) => {
-        try {
-            await db.collection(collection).doc(docId).delete();
-            addToast(successMsg, 'success');
-        } catch (error) {
-            addToast(getFirebaseErrorMessage(error), 'error');
-            throw error;
-        }
-    };
-    
-    // Bookings
-    const addBooking = (booking: Omit<Booking, 'id'>) => addDocument('bookings', booking, '¡Reserva creada exitosamente!');
-    const updateBooking = (booking: Booking) => updateDocument('bookings', booking.id, booking, 'Reserva actualizada.');
-    const deleteBooking = (bookingId: string) => deleteDocument('bookings', bookingId, 'Reserva cancelada.');
-
-    // Users
-    const updateUser = (user: User) => updateDocument('users', user.id, user, 'Usuario actualizado.');
-    const deleteUser = async (userId: string) => {
-        try {
-            await db.collection('users').doc(userId).delete();
-            // Delete associated bookings
-            const userBookings = await db.collection('bookings').where('userId', '==', userId).get();
-            const batch = db.batch();
-            userBookings.forEach(doc => batch.delete(doc.ref));
-            await batch.commit();
-            addToast('Usuario y sus reservas eliminados.', 'success');
-        } catch (error) {
-            addToast(getFirebaseErrorMessage(error), 'error');
-            throw error;
-        }
-    };
-
-    // Sectors
-    const addSector = (name: string) => addDocument('sectors', { name }, 'Sector agregado.');
-    const updateSector = (sector: Sector) => updateDocument('sectors', sector.id, sector, 'Sector actualizado.');
-    const deleteSector = (id: string) => deleteDocument('sectors', id, 'Sector eliminado.');
-    
-    // Roles
-    const addRole = (name: string) => addDocument('roles', { name }, 'Rol agregado.');
-    const updateRole = (role: Role) => updateDocument('roles', role.id, role, 'Rol actualizado.');
-    const deleteRole = (id: string) => deleteDocument('roles', id, 'Rol eliminado.');
-
-    // Salas
-    const addSala = (name: string, address: string) => addDocument('salas', { name, address }, 'Sala agregada.');
-    const updateSala = (sala: Sala) => updateDocument('salas', sala.id, sala, 'Sala actualizada.');
-    const deleteSala = async (id: string) => {
-         try {
-            await db.collection('salas').doc(id).delete();
-            // Delete associated bookings
-            const salaBookings = await db.collection('bookings').where('roomId', '==', id).get();
-            const batch = db.batch();
-            salaBookings.forEach(doc => batch.delete(doc.ref));
-            await batch.commit();
-            addToast('Sala y sus reservas eliminadas.', 'success');
-        } catch (error) {
-            addToast(getFirebaseErrorMessage(error), 'error');
-            throw error;
-        }
-    };
-
-    // FIX: Renamed function to avoid conflict with the `setSettings` state setter from `useState`.
-    const updateAppSettings = async (newSettings: Partial<AppSettings>) => {
-        try {
-            await db.collection('settings').doc('config').set(newSettings, { merge: true });
-            addToast('Configuración guardada.', 'success');
-        } catch (error) {
-            addToast(getFirebaseErrorMessage(error), 'error');
-            throw error;
-        }
-    };
-    
-    // QR Modal
-    const openQrModal = () => setIsQrModalOpen(true);
-    const closeQrModal = () => setIsQrModalOpen(false);
-
-
+    // --- Context Value ---
     const value: AppContextType = {
-        currentUser,
-        users,
-        sectors,
-        roles,
-        salas,
-        bookings,
+        // State
+        user, firebaseUser, loading,
+        bookings, users, salas, sectors, roles,
+        // Settings
         logoUrl: settings.logoUrl,
         backgroundImageUrl: settings.backgroundImageUrl,
         homeBackgroundImageUrl: settings.homeBackgroundImageUrl,
         siteImageUrl: settings.siteImageUrl,
         adminSecretCode: settings.adminSecretCode,
-        lastBookingDuration: settings.lastBookingDuration || 1,
-        toasts,
-        confirmation,
-        isLoading,
-        isPwaInstallable,
-        isStandalone,
-        pwaInstalledOnce,
-        triggerPwaInstall,
-        login,
-        logout,
-        register,
-        addBooking,
-        deleteBooking,
-        updateBooking,
-        updateUser,
-        deleteUser,
-        addSector,
-        updateSector,
-        deleteSector,
-        addRole,
-        updateRole,
-        deleteRole,
-        addSala,
-        updateSala,
-        deleteSala,
-        setSettings: updateAppSettings,
+        setSettings: async (newSettings) => {
+             try {
+                // There's only one settings doc.
+                const settingsRef = db.collection('settings').doc('appConfig');
+                await settingsRef.set(newSettings, { merge: true });
+                addToast('Configuración guardada.', 'success');
+            } catch (error) {
+                addToast(getFirebaseErrorMessage(error), 'error');
+                throw error;
+            }
+        },
+        // Auth
+        login, register, logout,
+        // CRUD
+        addBooking: async (booking) => bookingCRUD.add({ ...booking, createdAt: new Date() } as any),
+        updateBooking: bookingCRUD.update,
+        deleteBooking: bookingCRUD.delete,
+        
+        addSala: async (name, address) => salaCRUD.add({ name, address } as any),
+        updateSala: salaCRUD.update,
+        deleteSala: async (id) => {
+            // Also delete bookings for this sala
+            const batch = db.batch();
+            const bookingsSnapshot = await db.collection('bookings').where('roomId', '==', id).get();
+            bookingsSnapshot.forEach(doc => batch.delete(doc.ref));
+            batch.delete(db.collection('salas').doc(id));
+            await batch.commit();
+        },
+
+        addSector: async (name) => sectorCRUD.add({ name } as any),
+        updateSector: sectorCRUD.update,
+        deleteSector: sectorCRUD.delete,
+
+        addRole: async (name) => roleCRUD.add({ name } as any),
+        updateRole: roleCRUD.update,
+        deleteRole: roleCRUD.delete,
+
+        updateUser: userCRUD.update,
+        deleteUser: userCRUD.delete, // Note: This doesn't delete from Firebase Auth. That requires admin SDK.
+
+        // UI
         addToast,
-        removeToast,
-        showConfirmation,
-        handleConfirm,
-        handleCancel,
-        isUpdateAvailable,
-        applyUpdate,
+        showConfirmation: (message, onConfirm) => setConfirmationState({ isOpen: true, message, onConfirm }),
+        confirmationState,
+        closeConfirmation: () => setConfirmationState({ isOpen: false, message: '', onConfirm: () => {} }),
+
+        // PWA
+        isPwaInstallable: !!pwaInstallPrompt,
+        pwaInstallPrompt,
+        triggerPwaInstall,
+        pwaInstalledOnce,
+        isManualInstallModalOpen,
+        openManualInstallModal: () => setIsManualInstallModalOpen(true),
+        closeManualInstallModal: () => setIsManualInstallModalOpen(false),
+        
+        // QR Modal
         isQrModalOpen,
-        openQrModal,
-        closeQrModal
+        openQrModal: () => setIsQrModalOpen(true),
+        closeQrModal: () => setIsQrModalOpen(false),
     };
 
-    return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+    return (
+        <AppContext.Provider value={value}>
+            {children}
+        </AppContext.Provider>
+    );
 };

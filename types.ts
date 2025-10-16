@@ -1,11 +1,40 @@
+
+import { User as FirebaseUser } from 'firebase/auth';
+
+// BeforeInstallPromptEvent is not a standard event type, so we define it here.
+export interface BeforeInstallPromptEvent extends Event {
+  readonly platforms: string[];
+  readonly userChoice: Promise<{
+    outcome: 'accepted' | 'dismissed';
+    platform: string;
+  }>;
+  prompt(): Promise<void>;
+}
+
 export interface User {
   id: string;
+  email: string;
   firstName: string;
   lastName: string;
-  email: string;
   phone: string;
   sector: string;
   role: string;
+}
+
+export interface Booking {
+  id:string;
+  userId: string;
+  roomId: string;
+  date: string; // YYYY-MM-DD
+  startTime: number; // 8, 9, 10...
+  duration: number; // in hours
+  createdAt: any; // Firestore Timestamp
+}
+
+export interface Sala {
+  id: string;
+  name: string;
+  address: string;
 }
 
 export interface Sector {
@@ -18,94 +47,89 @@ export interface Role {
   name: string;
 }
 
-export interface Sala {
-  id: string;
-  name: string;
-  address?: string;
-}
-
-export interface Booking {
-  id: string;
-  userId: string;
-  roomId: string;
-  date: string; // YYYY-MM-DD format
-  startTime: number; // 8, 9, 10, ...
-  duration: number; // in hours
-}
-
-export interface AppSettings {
-  logoUrl: string;
-  backgroundImageUrl: string;
-  homeBackgroundImageUrl: string;
-  adminSecretCode: string;
-  siteImageUrl: string;
-  lastBookingDuration?: number;
-}
-
-export interface ToastMessage {
-  id: number;
-  message: string;
-  type: 'success' | 'error';
-}
-
-export interface ConfirmationOptions {
-  confirmText?: string;
-  cancelText?: string;
-  confirmButtonClass?: string;
-}
-
-// FIX: onConfirm and onCancel removed to prevent storing functions in state.
-export interface ConfirmationState extends ConfirmationOptions {
-  isOpen: boolean;
-  message: string;
-}
-
-export interface AppContextType {
-    currentUser: User | null;
-    users: User[];
-    sectors: Sector[];
-    roles: Role[];
-    salas: Sala[];
-    bookings: Booking[];
+export interface Settings {
+    adminSecretCode: string;
     logoUrl: string;
     backgroundImageUrl: string;
     homeBackgroundImageUrl: string;
     siteImageUrl: string;
-    adminSecretCode: string;
-    lastBookingDuration: number;
-    toasts: ToastMessage[];
-    confirmation: ConfirmationState;
-    isLoading: boolean;
-    isPwaInstallable: boolean;
-    isStandalone: boolean;
-    pwaInstalledOnce: boolean;
-    triggerPwaInstall: () => void;
-    login: (email: string, pass: string) => Promise<void>;
-    logout: () => void;
-    register: (user: Omit<User, 'id'>, pass: string) => Promise<void>;
-    addBooking: (booking: Omit<Booking, 'id'>) => Promise<void>;
-    deleteBooking: (bookingId: string) => Promise<void>;
-    updateBooking: (booking: Booking) => Promise<void>;
-    updateUser: (user: User) => Promise<void>;
-    deleteUser: (userId: string) => Promise<void>;
-    addSector: (sectorName: string) => Promise<void>;
-    updateSector: (sector: Sector) => Promise<void>;
-    deleteSector: (sectorId: string) => Promise<void>;
-    addRole: (roleName: string) => Promise<void>;
-    updateRole: (role: Role) => Promise<void>;
-    deleteRole: (roleId: string) => Promise<void>;
-    addSala: (salaName: string, address: string) => Promise<void>;
-    updateSala: (sala: Sala) => Promise<void>;
-    deleteSala: (salaId: string) => Promise<void>;
-    setSettings: (settings: Partial<AppSettings>) => Promise<void>;
-    addToast: (message: string, type: 'success' | 'error') => void;
-    removeToast: (id: number) => void;
-    showConfirmation: (message: string, onConfirm: () => void, options?: ConfirmationOptions) => void;
-    handleConfirm: () => void;
-    handleCancel: () => void;
-    isUpdateAvailable: boolean;
-    applyUpdate: () => void;
-    isQrModalOpen: boolean;
-    openQrModal: () => void;
-    closeQrModal: () => void;
+}
+
+export interface Toast {
+  id: number;
+  message: string;
+  type: 'success' | 'error' | 'info';
+}
+
+export interface ConfirmationState {
+    isOpen: boolean;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+}
+
+export interface AppContextType {
+  user: User | null;
+  firebaseUser: FirebaseUser | null;
+  loading: boolean;
+  
+  // Auth
+  login: (email: string, pass: string) => Promise<void>;
+  register: (userData: Omit<User, 'id' | 'email'>, pass: string) => Promise<void>;
+  logout: () => void;
+  
+  // Data
+  bookings: Booking[];
+  users: User[];
+  salas: Sala[];
+  sectors: Sector[];
+  roles: Role[];
+  
+  // Settings
+  logoUrl: string;
+  backgroundImageUrl: string;
+  homeBackgroundImageUrl: string;
+  siteImageUrl: string;
+  adminSecretCode: string;
+  setSettings: (newSettings: Partial<Pick<Settings, 'adminSecretCode'>>) => Promise<void>;
+
+  // CRUD Operations
+  addBooking: (booking: Omit<Booking, 'id' | 'createdAt'>) => Promise<void>;
+  updateBooking: (booking: Booking) => Promise<void>;
+  deleteBooking: (id: string) => Promise<void>;
+  
+  addSala: (name: string, address: string) => Promise<void>;
+  updateSala: (sala: Sala) => Promise<void>;
+  deleteSala: (id: string) => Promise<void>;
+  
+  addSector: (name: string) => Promise<void>;
+  updateSector: (sector: Sector) => Promise<void>;
+  deleteSector: (id: string) => Promise<void>;
+
+  addRole: (name: string) => Promise<void>;
+  updateRole: (role: Role) => Promise<void>;
+  deleteRole: (id: string) => Promise<void>;
+
+  updateUser: (user: User) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
+
+  // UI
+  addToast: (message: string, type: 'success' | 'error' | 'info') => void;
+  showConfirmation: (message: string, onConfirm: () => void | Promise<void>) => void;
+  confirmationState: ConfirmationState;
+  closeConfirmation: () => void;
+
+
+  // PWA
+  isPwaInstallable: boolean;
+  pwaInstallPrompt: BeforeInstallPromptEvent | null;
+  triggerPwaInstall: () => void;
+  pwaInstalledOnce: boolean;
+  isManualInstallModalOpen: boolean;
+  openManualInstallModal: () => void;
+  closeManualInstallModal: () => void;
+
+  // QR Modal
+  isQrModalOpen: boolean;
+  openQrModal: () => void;
+  closeQrModal: () => void;
 }
