@@ -50,4 +50,4 @@ export const DEFAULT_HOME_BACKGROUND_URL = 'https://images.unsplash.com/photo-15
 export const DEFAULT_SITE_IMAGE_URL = 'https://i.postimg.cc/Hss2rxB2/IMAGEN-SITE.png';
 // FIX: Replaced the non-crawlable developer URL with a clean, public-facing URL from the Firebase config.
 // This is essential for social media platforms (like WhatsApp) to generate a rich link preview.
-export const DEFAULT_SHAREABLE_URL = 'https://reservalasala-c176c.firebaseapp.com';
+export const DEFAULT_SHAREABLE_URL = 'https://reserva-de-sala-de-telecom-56158496123.us-west1.run.app';

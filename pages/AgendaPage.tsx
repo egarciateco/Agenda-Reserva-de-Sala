@@ -5,7 +5,7 @@ import { DAYS_OF_WEEK, TIME_SLOTS } from '../constants';
 import { Sala, Booking, User } from '../types';
 import Header from '../components/common/Header';
 
-// --- Booking Modal Component (included here for simplicity) ---
+// --- Booking Modal Component (incluido aquí para simplicidad) ---
 interface BookingModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -93,7 +93,7 @@ const BookingModal: FC<BookingModalProps> = ({ isOpen, onClose, selectedSlot, ex
         </div>
     );
 };
-// --- End of Booking Modal Component ---
+// --- Fin del Componente Booking Modal ---
 
 
 const AgendaPage: FC = () => {
@@ -139,7 +139,7 @@ const AgendaPage: FC = () => {
     const handleCellClick = (sala: Sala, date: Date, time: number) => {
         const key = `${formatDateForInput(date)}-${time}`;
         const existingBooking = bookingsBySlot.get(key);
-        if (date < new Date(new Date().toDateString())) return; // Prevent booking in the past
+        if (date < new Date(new Date().toDateString())) return; // Prevenir reservas en el pasado
         
         if (existingBooking) {
             setViewingBooking(existingBooking);
@@ -151,13 +151,17 @@ const AgendaPage: FC = () => {
     const selectedSala = salas.find(s => s.id === selectedSalaId);
 
     return (
-        <div 
-            className="relative h-screen bg-cover bg-center bg-fixed"
-            style={{ backgroundImage: `url(${backgroundImageUrl})` }}
-        >
-            <div className="absolute inset-0 flex flex-col bg-gray-900/80 text-white">
+        <div className="relative min-h-screen w-full">
+            {/* Capa de Fondo */}
+            <div
+                className="absolute inset-0 bg-cover bg-center bg-fixed z-0"
+                style={{ backgroundImage: `url(${backgroundImageUrl})` }}
+            />
+            
+            {/* Capa de Contenido Superpuesta */}
+            <div className="absolute inset-0 flex flex-col bg-gray-900/80 text-white z-10">
                 <Header />
-                <main className="flex-1 p-2 sm:p-4 md:p-6 overflow-auto">
+                <main className="flex-1 p-2 sm:p-4 md:p-6 overflow-y-auto">
                     <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                         <div className="flex items-center gap-6">
                             <img src={siteImageUrl} alt="Site" className="rounded-lg object-cover w-24 h-24 hidden sm:block" />
@@ -215,7 +219,7 @@ const AgendaPage: FC = () => {
                                             );
                                         }
 
-                                        if (booking) return null; // This slot is covered by a multi-hour booking starting earlier
+                                        if (booking) return null; // Este slot está cubierto por una reserva de varias horas que empieza antes
                                         
                                         return (
                                             <div
