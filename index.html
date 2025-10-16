@@ -1,50 +1,45 @@
-<script type="importmap">
-{
-  "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.4",
-    "react-hot-toast": "https://aistudiocdn.com/react-hot-toast@^2.6.0",
-    "firebase/": "https://aistudiocdn.com/firebase@^12.4.0/"
-  }
-}
-</script>
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/auth';
-import 'firebase/compat/firestore';
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reserva de Sala de TELECOM</title>
+  
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="https://i.postimg.cc/Hss2rxB2/IMAGEN-SITE.png">
+  <meta name="theme-color" content="#2563eb">
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyD1JfKhFGNElcKbGRjHF3sAZdMgqIluSYI",
-  authDomain: "reservalasala-c176c.firebaseapp.com",
-  projectId: "reservalasala-c176c",
-  storageBucket: "reservalasala-c176c.appspot.com",
-  messagingSenderId: "56158496123",
-  appId: "1:56158496123:web:927b0044e50e13771609de",
-};
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://reservalasala-c176c.firebaseapp.com">
+  <meta property="og:title" content="Reserva de Sala de TELECOM">
+  <meta property="og:description" content="Agenda de reservas para salas de reuniones en Telecom.">
+  <meta property="og:image" content="https://i.postimg.cc/Hss2rxB2/IMAGEN-SITE.png">
 
-// Initialize Firebase only if it hasn't been initialized yet.
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
-}
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://reservalasala-c176c.firebaseapp.com">
+  <meta property="twitter:title" content="Reserva de Sala de TELECOM">
+  <meta property="twitter:description" content="Agenda de reservas para salas de reuniones en Telecom.">
+  <meta property="twitter:image" content="https://i.postimg.cc/Hss2rxB2/IMAGEN-SITE.png">
 
-// Initialize and export services
-export const auth = firebase.auth();
-export const db = firebase.firestore();
-
-// Type export for use in other files.
-// The User type is available on the root firebase namespace in the compat library.
-export type FirebaseUser = firebase.User;
-
-// Enable offline persistence for a robust PWA experience.
-db.enablePersistence()
-  .catch((err: any) => {
-    if (err.code === 'failed-precondition') {
-      console.warn('Firestore persistence failed: Multiple tabs open.');
-    } else if (err.code === 'unimplemented') {
-      console.warn('Firestore persistence not available in this browser.');
-    } else {
-      console.error('An unknown error occurred during Firestore persistence setup:', String(err));
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://aistudiocdn.com/react@^19.2.0",
+      "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+      "react/": "https://aistudiocdn.com/react@^19.2.0/",
+      "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.4",
+      "react-hot-toast": "https://aistudiocdn.com/react-hot-toast@^2.6.0",
+      "firebase/": "https://aistudiocdn.com/firebase@^12.4.0/"
     }
-  });
+  }
+  </script>
+</head>
+<body>
+  <noscript>Necesitas habilitar JavaScript para ejecutar esta aplicación.</noscript>
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
