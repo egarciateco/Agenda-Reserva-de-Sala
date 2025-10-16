@@ -1,5 +1,3 @@
-
-
 import { createContext, useState, useEffect, FC, ReactNode } from 'react';
 import { toast } from 'react-hot-toast';
 import { auth, db } from '../utils/firebase';
@@ -12,17 +10,17 @@ import {
     DEFAULT_LOGO_URL, DEFAULT_BACKGROUND_URL, DEFAULT_HOME_BACKGROUND_URL, DEFAULT_SITE_IMAGE_URL,
     INITIAL_ADMIN_SECRET_CODE, INITIAL_SALAS, INITIAL_SECTORS, INITIAL_ROLES
 } from '../constants';
-// FIX: The User type is not a named export from 'firebase/auth' in the compat library.
-// The correct type is `firebase.User`, which is available after importing from 'firebase/compat/app'.
-import type firebase from 'firebase/compat/app';
+// FIX: The correct firebase user type is `firebase.auth.User`.
+// This is available after getting the default export from 'firebase/compat/app' and importing 'firebase/compat/auth'.
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/auth';
 // FIX: Removed incorrect import of 'User' from 'firebase/auth'. The compat library does not export this type.
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
     // State
-    // FIX: Use the correctly imported firebase.User type for the state.
-    const [firebaseUser, setFirebaseUser] = useState<firebase.User | null>(null);
+    const [firebaseUser, setFirebaseUser] = useState<firebase.auth.User | null>(null);
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     
@@ -203,11 +201,13 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
         // Auth
         login, register, logout,
         // CRUD
-        addBooking: async (booking) => bookingCRUD.add({ ...booking, createdAt: new Date() } as any),
+        // FIX: The `add` method from the CRUD factory returns a DocumentReference, but the type expects void. By awaiting the call inside a block, the function implicitly returns Promise<void>.
+        addBooking: async (booking) => { await bookingCRUD.add({ ...booking, createdAt: new Date() } as any); },
         updateBooking: bookingCRUD.update,
         deleteBooking: bookingCRUD.delete,
         
-        addSala: async (name, address) => salaCRUD.add({ name, address } as any),
+        // FIX: The `add` method from the CRUD factory returns a DocumentReference, but the type expects void. By awaiting the call inside a block, the function implicitly returns Promise<void>.
+        addSala: async (name, address) => { await salaCRUD.add({ name, address } as any); },
         updateSala: salaCRUD.update,
         deleteSala: async (id) => {
             // Also delete bookings for this sala
@@ -218,11 +218,13 @@ export const AppProvider: FC<{ children: ReactNode }> = ({ children }) => {
             await batch.commit();
         },
 
-        addSector: async (name) => sectorCRUD.add({ name } as any),
+        // FIX: The `add` method from the CRUD factory returns a DocumentReference, but the type expects void. By awaiting the call inside a block, the function implicitly returns Promise<void>.
+        addSector: async (name) => { await sectorCRUD.add({ name } as any); },
         updateSector: sectorCRUD.update,
         deleteSector: sectorCRUD.delete,
 
-        addRole: async (name) => roleCRUD.add({ name } as any),
+        // FIX: The `add` method from the CRUD factory returns a DocumentReference, but the type expects void. By awaiting the call inside a block, the function implicitly returns Promise<void>.
+        addRole: async (name) => { await roleCRUD.add({ name } as any); },
         updateRole: roleCRUD.update,
         deleteRole: roleCRUD.delete,
 

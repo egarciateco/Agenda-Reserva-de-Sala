@@ -1,8 +1,7 @@
-
-
-// FIX: The User type is not a named export from 'firebase/auth' in the compat library.
-// The correct type is `firebase.User`, which is available after importing from 'firebase/compat/app'.
-import type firebase from 'firebase/compat/app';
+// FIX: The correct firebase user type is `firebase.auth.User`.
+// This is available after getting the default export from 'firebase/compat/app' and importing 'firebase/compat/auth'.
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/auth';
 
 // BeforeInstallPromptEvent is not a standard event type, so we define it here.
 export interface BeforeInstallPromptEvent extends Event {
@@ -72,8 +71,7 @@ export interface ConfirmationState {
 
 export interface AppContextType {
   user: User | null;
-  // FIX: Use the correctly imported firebase.User type.
-  firebaseUser: firebase.User | null;
+  firebaseUser: firebase.auth.User | null;
   loading: boolean;
   
   // Auth

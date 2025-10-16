@@ -1,4 +1,4 @@
-import "firebase/compat/app";
+import firebase from "firebase/compat/app";
 import "firebase/compat/auth";
 import "firebase/compat/firestore";
 
@@ -12,12 +12,9 @@ const firebaseConfig = {
   appId: "1:56158496123:web:927b0044e50e13771609de",
 };
 
-// Access the firebase instance from the window object, which is populated by the UMD scripts.
-const firebase = (window as any).firebase;
-
 // Initialize Firebase only if it hasn't been initialized yet.
 // This is a safeguard against re-initialization, e.g., in hot-reloading environments.
-if (firebase && !firebase.apps.length) {
+if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
 

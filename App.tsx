@@ -1,4 +1,5 @@
 
+
 import { FC, ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
@@ -13,7 +14,7 @@ import LogoutPage from './pages/LogoutPage';
 import InstallPWAButton from './components/common/InstallPWAButton';
 import ManualInstallModal from './components/common/ManualInstallModal';
 import QRCodeModal from './components/common/QRCodeModal';
-import ConfirmationModal from './components/common/ConfirmationModal'; // This is a new component I'll create inside AppContext
+import ConfirmationModal from './components/common/ConfirmationModal';
 
 interface RouteProps {
     children: ReactNode;
