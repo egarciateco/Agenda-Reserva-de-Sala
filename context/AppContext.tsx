@@ -10,11 +10,9 @@ import {
     DEFAULT_LOGO_URL, DEFAULT_BACKGROUND_URL, DEFAULT_HOME_BACKGROUND_URL, DEFAULT_SITE_IMAGE_URL,
     INITIAL_ADMIN_SECRET_CODE, INITIAL_SALAS, INITIAL_SECTORS, INITIAL_ROLES
 } from '../constants';
-// FIX: The correct firebase user type is `firebase.auth.User`.
-// This is available after getting the default export from 'firebase/compat/app' and importing 'firebase/compat/auth'.
+// FIX: Use default import for Firebase compat library.
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
-// FIX: Removed incorrect import of 'User' from 'firebase/auth'. The compat library does not export this type.
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
 

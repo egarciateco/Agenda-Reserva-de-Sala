@@ -1,5 +1,4 @@
-// FIX: The correct firebase user type is `firebase.auth.User`.
-// This is available after getting the default export from 'firebase/compat/app' and importing 'firebase/compat/auth'.
+// FIX: Use default import for Firebase compat library.
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 
