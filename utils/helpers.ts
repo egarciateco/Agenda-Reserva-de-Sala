@@ -1,85 +1,25 @@
-export const formatUserText = (text: string): string => {
-    if (!text) return '';
-    return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
-};
 
-export const formatDate = (date: Date): string => {
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
-};
-
-export const formatDateForInput = (date: Date): string => {
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${year}-${month}-${day}`;
-};
-
-export const getWeekStartDate = (date: Date): Date => {
-  const newDate = new Date(date);
-  newDate.setHours(0, 0, 0, 0);
-  const day = newDate.getDay();
-  const diff = newDate.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
-  return new Date(newDate.setDate(diff));
+/**
+ * Capitaliza la primera letra de una cadena y convierte el resto a minúsculas.
+ * @param text La cadena a formatear.
+ * @returns La cadena formateada o una cadena vacía si la entrada es nula/indefinida.
+ */
+export const formatUserText = (text: string | null | undefined): string => {
+  if (!text) return '';
+  return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
 };
 
 /**
- * Translates Firebase error codes into user-friendly Spanish messages.
- * @param error - The error object, typically from a Firebase catch block.
- * @returns A user-friendly error message string.
+ * Formatea un objeto Date a una cadena 'YYYY-MM-DD' para su uso en un input[type="date"].
+ * Maneja correctamente las zonas horarias para evitar errores de un día.
+ * @param date El objeto Date a formatear.
+ * @returns La fecha formateada como 'YYYY-MM-DD'.
  */
-export const getFirebaseErrorMessage = (error: any): string => {
-  let message = 'Ocurrió un error inesperado. Por favor, revisa tu conexión e inténtalo de nuevo.';
-
-  if (error && error.code) {
-    switch (error.code) {
-      // AUTH ERRORS
-      case 'auth/invalid-email':
-        message = 'El formato del email no es válido.';
-        break;
-      case 'auth/user-disabled':
-        message = 'Este usuario ha sido deshabilitado.';
-        break;
-      case 'auth/user-not-found':
-      case 'auth/wrong-password':
-      case 'auth/invalid-credential':
-        message = 'Credenciales incorrectas. Por favor, verifica tu email y contraseña.';
-        break;
-      case 'auth/email-already-in-use':
-        message = 'La dirección de email ya está en uso. Si ya tienes una cuenta, por favor inicia sesión.';
-        break;
-      case 'auth/weak-password':
-        message = 'La contraseña es muy débil. Debe tener al menos 6 caracteres.';
-        break;
-      case 'auth/network-request-failed':
-        message = 'Error de red. Por favor, verifica tu conexión a internet e inténtalo de nuevo.';
-        break;
-      case 'auth/popup-closed-by-user':
-        message = 'El proceso fue cancelado. Por favor, inténtalo de nuevo.';
-        break;
-      
-      // FIRESTORE ERRORS
-      case 'unavailable':
-        message = 'No se pudo conectar a la base de datos. La aplicación podría mostrar datos desactualizados.';
-        break;
-      case 'permission-denied':
-        message = 'No tienes permiso para realizar esta acción.';
-        break;
-      case 'not-found':
-         message = 'El recurso solicitado no fue encontrado.';
-         break;
-      default:
-        // Log unhandled errors for easier debugging but show a generic message to the user.
-        console.error(`Unhandled Firebase Error Code: ${error.code}, Message: ${error.message}`);
-        // The default generic message is kept.
-        break;
-    }
-  } else if (error instanceof Error) {
-    // Handle generic JS errors
-    return error.message;
-  }
-
-  return message;
+export const formatDateForInput = (date: Date): string => {
+    const year = date.getFullYear();
+    // getMonth() es 0-indexed, por lo que sumamos 1.
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    // getDate() es 1-indexed.
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
 };
