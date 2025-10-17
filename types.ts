@@ -73,7 +73,8 @@ export interface AppContextType {
   
   // Auth
   login: (email: string, pass: string) => Promise<void>;
-  register: (userData: Omit<User, 'id' | 'email'>, pass: string) => Promise<void>;
+  // FIX: Changed Omit<User, 'id' | 'email'> to Omit<User, 'id'> to include email in userData for registration.
+  register: (userData: Omit<User, 'id'>, pass: string) => Promise<void>;
   logout: () => void;
   
   // Data

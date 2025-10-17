@@ -1,4 +1,5 @@
 
+
 import { createContext, useState, useEffect, FC, ReactNode, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { auth, db } from '../utils/firebase';
@@ -198,7 +199,9 @@ export const AppProvider: FC<AppProviderProps> = ({ children }) => {
             throw error;
         }
     };
-    const register = async (userData: Omit<User, 'id' | 'email'>, pass: string) => {
+    // FIX: The `userData` parameter type was changed from Omit<User, 'id' | 'email'> to Omit<User, 'id'>.
+    // This makes the `email` property available for creating the auth user and for storing in Firestore, resolving both type errors.
+    const register = async (userData: Omit<User, 'id'>, pass: string) => {
         try {
             const { user: fbUser } = await auth.createUserWithEmailAndPassword(userData.email, pass);
             if (!fbUser) throw new Error('No se pudo crear el usuario.');

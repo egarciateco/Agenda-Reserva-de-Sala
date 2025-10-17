@@ -1,4 +1,3 @@
-
 import { FC, useState, useMemo, useEffect } from 'react';
 import Header from '../components/common/Header';
 import { useAppContext } from '../hooks/useAppContext';
@@ -116,21 +115,34 @@ const AgendaPage: FC = () => {
                         </div>
 
                          {selectedSala && (
-                            <div className="flex items-center gap-4 mb-4 bg-black bg-opacity-30 p-3 rounded-lg">
-                                <img src={siteImageUrl} alt="Ubicación" className="h-10 w-10 object-contain bg-white p-1 rounded-md" />
-                                <div>
-                                    <p className="font-bold text-cyan-400">{selectedSala.name}</p>
-                                    <p className="text-xs text-gray-300">{selectedSala.address}</p>
-                                </div>
+                            <div className="mb-4 bg-black bg-opacity-30 p-3 rounded-lg">
+                                <p className="font-bold text-cyan-400">{selectedSala.name}</p>
+                                <p className="text-xs text-gray-300">{selectedSala.address}</p>
                             </div>
                          )}
 
-                        <div className="flex justify-between items-center mb-4">
-                            <button onClick={() => changeWeek('prev')} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-md">&lt; Ant</button>
-                            <h2 className="text-xl font-semibold text-center text-white">
-                                {startOfWeek.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
-                            </h2>
-                            <button onClick={() => changeWeek('next')} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-md">Sig &gt;</button>
+                        <div className="flex justify-center items-center mb-4 gap-6">
+                             <img src={siteImageUrl} alt="Icono" className="h-16 w-16 object-contain bg-white p-1 rounded-md hidden md:block" />
+                            <div className="flex items-center gap-4">
+                                <button 
+                                    onClick={() => changeWeek('prev')} 
+                                    className="p-3 bg-gray-700 hover:bg-gray-600 rounded-md text-white font-bold text-xl"
+                                >
+                                    &lt;
+                                </button>
+                                <div className="text-center w-56">
+                                    <h2 className="text-2xl font-semibold text-white">
+                                        {startOfWeek.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+                                    </h2>
+                                    <button onClick={() => setCurrentDate(new Date())} className="text-sm text-blue-400 hover:underline">Hoy</button>
+                                </div>
+                                <button 
+                                    onClick={() => changeWeek('next')} 
+                                    className="p-3 bg-gray-700 hover:bg-gray-600 rounded-md text-white font-bold text-xl"
+                                >
+                                    &gt;
+                                </button>
+                            </div>
                         </div>
 
                         <div className="overflow-x-auto">
