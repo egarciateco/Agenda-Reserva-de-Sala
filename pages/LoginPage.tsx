@@ -1,61 +1,65 @@
-
 import { useState, FC, FormEvent, ChangeEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from '../hooks/useAppContext';
 
 const LoginPage: FC = () => {
     const { login, logoUrl } = useAppContext();
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+    const navigate = useNavigate();
+    const location = useLocation();
+    const from = location.state?.from?.pathname || '/agenda';
+
+    const [formData, setFormData] = useState({ email: '', password: '' });
     const [isLoading, setIsLoading] = useState(false);
-    
-    // The navigation to /agenda is handled by PublicRoute after a successful login.
+    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+
+    const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+        setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    };
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         try {
-            await login(email, password);
-            // On successful login, the AppContext state will change,
-            // and the PublicRoute will automatically redirect to /agenda.
+            await login(formData.email.trim(), formData.password);
+            // The PublicRoute will automatically navigate to /agenda on successful login
         } catch (error) {
-            // Error toast is handled by the context, so we just need to stop loading.
+            // Error toast is handled by the context
+            setFormData(prev => ({...prev, password: ''}));
         } finally {
             setIsLoading(false);
         }
     };
-    
+
     return (
         <div className="relative min-h-screen flex flex-col items-center justify-center p-4 bg-black bg-opacity-50">
             <header className="absolute top-0 left-0 right-0 p-4 flex justify-start z-10">
-                <img src={logoUrl} alt="TELECOM Logo" className="h-12 object-contain" />
+                 <img src={logoUrl} alt="TELECOM Logo" className="h-12 object-contain" />
             </header>
-            
+
             <main className="w-full max-w-sm">
-                 <div className="bg-gray-900 bg-opacity-80 p-8 rounded-xl shadow-2xl backdrop-blur-md text-white">
+                <div className="bg-gray-900 bg-opacity-80 p-8 rounded-xl shadow-2xl backdrop-blur-md text-white">
                     <h2 className="text-3xl font-bold text-center mb-8">Iniciar Sesión</h2>
                     <form onSubmit={handleSubmit} className="space-y-6">
-                        <div>
-                            <input
-                                type="email"
-                                name="email"
-                                placeholder="Email"
-                                value={email}
-                                onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-                                required
-                                className="input-style w-full"
-                            />
-                        </div>
+                        <input
+                            type="email"
+                            name="email"
+                            placeholder="Email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            required
+                            className="input-style"
+                            autoComplete="email"
+                        />
                         <div className="relative">
-                             <input
+                            <input
                                 type={isPasswordVisible ? 'text' : 'password'}
                                 name="password"
                                 placeholder="Contraseña"
-                                value={password}
-                                onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+                                value={formData.password}
+                                onChange={handleChange}
                                 required
-                                className="input-style w-full pr-10"
+                                className="input-style pr-10"
+                                autoComplete="current-password"
                             />
                             <button
                                 type="button"
@@ -70,6 +74,7 @@ const LoginPage: FC = () => {
                                 )}
                             </button>
                         </div>
+                        
                         <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-md transition-colors disabled:bg-blue-800" disabled={isLoading}>
                             {isLoading ? 'Ingresando...' : 'Ingresar'}
                         </button>
@@ -87,14 +92,23 @@ const LoginPage: FC = () => {
                     <p className="font-bold">Realizado por:</p>
                     <p>Esteban García. - Para uso exclusivo de Telecom Argentina S.A.</p>
                 </div>
+                 <div className="mt-2 flex gap-4">
+                    <Link to="/privacy-policy" className="text-gray-400 hover:text-white underline transition-colors">
+                        Política de Privacidad
+                    </Link>
+                    <Link to="/terms-of-service" className="text-gray-400 hover:text-white underline transition-colors">
+                        Términos de Servicio
+                    </Link>
+                </div>
             </footer>
-             <style>{`
+            <style>{`
                 .input-style {
                     background-color: #374151; /* bg-gray-700 */
                     border: 1px solid #4B5563; /* border-gray-600 */
                     border-radius: 0.375rem; /* rounded-md */
-                    padding: 0.5rem 0.75rem;
+                    padding: 0.75rem;
                     color: white;
+                    width: 100%;
                 }
                 .input-style:focus {
                     outline: none;
