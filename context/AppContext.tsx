@@ -13,6 +13,7 @@ import {
     DEFAULT_SITE_IMAGE_URL, INITIAL_ADMIN_SECRET_CODE, INITIAL_SALAS, 
     INITIAL_ROLES, INITIAL_SECTORS 
 } from '../constants';
+import { playSuccessSound } from '../utils/helpers';
 
 // FIX: Create the context with a default undefined value, which is checked in the useAppContext hook.
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -59,6 +60,7 @@ export const AppProvider: FC<AppProviderProps> = ({ children }) => {
         switch(type) {
             case 'success':
                 toast.success(message);
+                playSuccessSound();
                 break;
             case 'error':
                 toast.error(message);
@@ -194,6 +196,7 @@ export const AppProvider: FC<AppProviderProps> = ({ children }) => {
     const login = async (email: string, pass: string) => {
         try {
             await auth.signInWithEmailAndPassword(email, pass);
+            addToast('Sesión iniciada correctamente', 'success');
         } catch (error: any) {
             addToast(error.message || 'Error al iniciar sesión.', 'error');
             throw error;
@@ -210,6 +213,7 @@ export const AppProvider: FC<AppProviderProps> = ({ children }) => {
                 ...userData,
             };
             await db.collection('users').doc(fbUser.uid).set(newUser);
+            addToast('Usuario registrado con éxito', 'success');
         } catch (error: any) {
             addToast(error.message || 'Error al registrarse.', 'error');
             throw error;
@@ -231,10 +235,22 @@ export const AppProvider: FC<AppProviderProps> = ({ children }) => {
     // CRUD
     const addBooking = async (booking: Omit<Booking, 'id' | 'createdAt'>) => {
         try {
+             // Check for overlapping bookings
+            const existingBookingQuery = await db.collection('bookings')
+                .where('roomId', '==', booking.roomId)
+                .where('date', '==', booking.date)
+                .where('startTime', '==', booking.startTime)
+                .get();
+
+            if (!existingBookingQuery.empty) {
+                addToast('Este horario ya ha sido reservado. Por favor, actualiza la agenda.', 'error');
+                throw new Error('Slot already booked');
+            }
+
             await db.collection('bookings').add({ ...booking, createdAt: new Date() });
             addToast('Reserva creada con éxito.', 'success');
         } catch (error) {
-            addToast('Error al crear la reserva.', 'error');
+            // Re-throw the error so the calling component can handle it (e.g., close modal)
             throw error;
         }
     };

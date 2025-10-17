@@ -1,15 +1,17 @@
 import { FC, useState, useMemo, useEffect } from 'react';
 import Header from '../components/common/Header';
 import { useAppContext } from '../hooks/useAppContext';
-import { Booking, Sala } from '../types';
+import { Booking, Sala, User } from '../types';
 import { DAYS_OF_WEEK, TIME_SLOTS } from '../constants';
 import { formatUserText } from '../utils/helpers';
 
 const AgendaPage: FC = () => {
-    const { user, bookings, salas, addBooking, deleteBooking, showConfirmation, backgroundImageUrl, siteImageUrl } = useAppContext();
+    const { user, users, bookings, salas, addBooking, deleteBooking, showConfirmation, backgroundImageUrl, siteImageUrl } = useAppContext();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedSalaId, setSelectedSalaId] = useState<string | null>(null);
     const [bookingModal, setBookingModal] = useState<{ isOpen: boolean; date: Date; time: number }>({ isOpen: false, date: new Date(), time: 0 });
+
+    const userMap = useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
 
     useEffect(() => {
         if (salas.length > 0 && !selectedSalaId) {
@@ -20,7 +22,8 @@ const AgendaPage: FC = () => {
     const startOfWeek = useMemo(() => {
         const date = new Date(currentDate);
         const day = date.getDay();
-        const diff = date.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+        const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+        date.setHours(0, 0, 0, 0);
         return new Date(date.setDate(diff));
     }, [currentDate]);
 
@@ -49,11 +52,17 @@ const AgendaPage: FC = () => {
     }, [bookings, selectedSalaId]);
 
     const handleBooking = (date: Date, time: number) => {
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        if (date < today) {
-            return; // Cannot book in the past
+        const now = new Date();
+        const slotDateTime = new Date(date);
+        slotDateTime.setHours(time, 0, 0, 0);
+        if (slotDateTime < now) return; // Cannot book in the past
+
+        const isAlreadyBooked = bookingsBySlot.get(`${date.toDateString()}-${time}`);
+        if(isAlreadyBooked) {
+             // The check in the context is the definitive one, this is a quick UI check.
+            return;
         }
+
         setBookingModal({ isOpen: true, date, time });
     };
 
@@ -67,8 +76,13 @@ const AgendaPage: FC = () => {
             startTime: bookingModal.time,
             duration,
         };
-        await addBooking(newBooking);
-        setBookingModal({ isOpen: false, date: new Date(), time: 0 });
+        try {
+            await addBooking(newBooking);
+            setBookingModal({ isOpen: false, date: new Date(), time: 0 });
+        } catch (error) {
+            // Error toast is shown by context, so we just need to close the modal
+            setBookingModal({ isOpen: false, date: new Date(), time: 0 });
+        }
     };
 
     const handleDelete = (booking: Booking) => {
@@ -94,39 +108,33 @@ const AgendaPage: FC = () => {
             <div className="absolute inset-0 bg-black bg-opacity-70"></div>
             <div className="relative flex flex-col h-full">
                 <Header />
-                <main className="flex-1 p-4 md:p-6 overflow-auto">
+                <main className="flex-1 p-4 md:p-6 overflow-auto text-white">
                     <div className="max-w-7xl mx-auto">
-                        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                            <div>
-                                <h1 className="text-3xl font-bold text-white">Agenda de Salas</h1>
-                                <p className="text-gray-300">Selecciona una sala y un horario para reservar.</p>
-                            </div>
-                            <div className="w-full md:w-auto">
-                                <label htmlFor="sala-select" className="sr-only">Seleccionar Sala</label>
+                        <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4 bg-black bg-opacity-30 p-4 rounded-lg">
+                            <div className='w-full md:w-auto'>
+                                <label htmlFor="sala-select" className="block text-lg font-bold mb-1">UD. ESTA RESERVANDO EN SALA:</label>
                                 <select 
                                     id="sala-select"
                                     value={selectedSalaId || ''} 
                                     onChange={(e) => setSelectedSalaId(e.target.value)}
-                                    className="w-full md:w-64 bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                    className="w-full md:w-96 bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white text-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                                 >
                                     {salas.map(sala => <option key={sala.id} value={sala.id}>{sala.name}</option>)}
                                 </select>
                             </div>
+                            {selectedSala && (
+                                <div className="w-full md:w-96 text-left md:text-right">
+                                    <p className="font-bold text-lg text-cyan-400">{selectedSala.address}</p>
+                                </div>
+                            )}
                         </div>
 
-                         {selectedSala && (
-                            <div className="mb-4 bg-black bg-opacity-30 p-3 rounded-lg">
-                                <p className="font-bold text-cyan-400">{selectedSala.name}</p>
-                                <p className="text-xs text-gray-300">{selectedSala.address}</p>
-                            </div>
-                         )}
-
                         <div className="flex justify-center items-center mb-4 gap-6">
-                             <img src={siteImageUrl} alt="Icono" className="h-16 w-16 object-contain bg-white p-1 rounded-md hidden md:block" />
+                             <img src={siteImageUrl} alt="Icono" className="h-20 w-20 object-contain bg-white p-1 rounded-md hidden md:block" />
                             <div className="flex items-center gap-4">
                                 <button 
                                     onClick={() => changeWeek('prev')} 
-                                    className="p-3 bg-gray-700 hover:bg-gray-600 rounded-md text-white font-bold text-xl"
+                                    className="p-3 bg-gray-700 hover:bg-gray-600 rounded-md text-white font-bold text-2xl"
                                 >
                                     &lt;
                                 </button>
@@ -138,7 +146,7 @@ const AgendaPage: FC = () => {
                                 </div>
                                 <button 
                                     onClick={() => changeWeek('next')} 
-                                    className="p-3 bg-gray-700 hover:bg-gray-600 rounded-md text-white font-bold text-xl"
+                                    className="p-3 bg-gray-700 hover:bg-gray-600 rounded-md text-white font-bold text-2xl"
                                 >
                                     &gt;
                                 </button>
@@ -146,51 +154,67 @@ const AgendaPage: FC = () => {
                         </div>
 
                         <div className="overflow-x-auto">
-                            <table className="w-full border-collapse text-center">
-                                <thead>
-                                    <tr>
-                                        <th className="p-2 w-24 border-r border-gray-700">Horario</th>
-                                        {weekDates.map(date => (
-                                            <th key={date.toISOString()} className="p-2 border-r border-gray-700">
-                                                {DAYS_OF_WEEK[date.getDay() - 1]}<br/>
-                                                <span className="font-normal text-sm">{date.getDate()}</span>
-                                            </th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
+                            <div className="flex">
+                                <div className="w-40 flex-shrink-0">
+                                    <div className="h-16 bg-black text-white flex items-center justify-center p-2 border-r border-b border-gray-700">Horario</div>
                                     {TIME_SLOTS.map(time => (
-                                        <tr key={time} className="border-t border-gray-700">
-                                            <td className="p-2 border-r border-gray-700 text-xs">{`${time}:00`}</td>
-                                            {weekDates.map(date => {
+                                         <div key={time} className="h-16 bg-black text-white flex items-center justify-center p-2 border-r border-b border-gray-700 text-xs font-semibold">
+                                            {`${time.toString().padStart(2, '0')}:00 a ${(time + 1).toString().padStart(2, '0')}:00`}
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="flex-grow grid grid-cols-5">
+                                    {weekDates.map((date, dateIndex) => (
+                                        <div key={date.toISOString()} className="flex flex-col">
+                                            <div className="h-16 bg-black text-white flex flex-col items-center justify-center p-2 border-b border-gray-700">
+                                                <span className="text-lg font-bold">{DAYS_OF_WEEK[date.getDay() - 1]}</span>
+                                                <span className="text-sm">{date.getDate()}</span>
+                                            </div>
+                                            {TIME_SLOTS.map(time => {
+                                                const now = new Date();
+                                                const slotDateTime = new Date(date);
+                                                slotDateTime.setHours(time + 1, 0, 0, 0); // Check against the end of the slot
+                                                
                                                 const booking = bookingsBySlot.get(`${date.toDateString()}-${time}`);
+                                                const isPast = slotDateTime < now;
                                                 const isOwner = user && booking && booking.userId === user.id;
                                                 const isAdmin = user?.role === 'Administrador';
+                                                const bookedByUser = booking ? userMap.get(booking.userId) : null;
                                                 
-                                                if (booking) {
-                                                    const bookedUser = bookings.find(b => b.id === booking.id)?.userId;
-                                                    return (
-                                                        <td key={date.toISOString()} className="p-1 border-r border-gray-700 bg-blue-800 bg-opacity-70" style={{ height: '50px' }}>
-                                                            <div className="text-xs text-white">
-                                                                Reservado
-                                                                {(isOwner || isAdmin) && (
-                                                                    <button onClick={() => handleDelete(booking)} className="ml-1 text-red-400 hover:text-red-300">
-                                                                        (X)
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        </td>
+                                                let cellContent;
+                                                let cellClassName = "h-16 p-1 border-b border-r border-gray-700 text-xs text-center flex flex-col items-center justify-center";
+
+                                                if (isPast) {
+                                                    cellClassName += " bg-gray-600 text-gray-400 cursor-not-allowed";
+                                                    cellContent = "NO DISPONIBLE";
+                                                } else if (booking && bookedByUser) {
+                                                    cellClassName += " bg-red-800 text-white";
+                                                    cellContent = (
+                                                        <>
+                                                            <div className="font-bold truncate">{`${formatUserText(bookedByUser.lastName)}, ${formatUserText(bookedByUser.firstName)}`}</div>
+                                                            <div className="text-gray-300 truncate">{isAdmin ? "Facilities & Servicios" : formatUserText(bookedByUser.sector)}</div>
+                                                            {(isOwner || isAdmin) && (
+                                                                <button onClick={() => handleDelete(booking)} className="absolute top-0 right-0 text-white hover:text-red-400 p-1 text-xs">
+                                                                    X
+                                                                </button>
+                                                            )}
+                                                        </>
                                                     );
+                                                } else {
+                                                    cellClassName += " bg-green-800 hover:bg-green-700 text-white cursor-pointer transition-colors";
+                                                    cellContent = "DISPONIBLE";
                                                 }
+
                                                 return (
-                                                    <td key={date.toISOString()} className="p-1 border-r border-gray-700 hover:bg-green-800 transition-colors cursor-pointer" style={{ height: '50px' }} onClick={() => handleBooking(date, time)}>
-                                                    </td>
+                                                    <div key={time} className={`${cellClassName} relative`} onClick={() => handleBooking(date, time)}>
+                                                        {cellContent}
+                                                    </div>
                                                 );
                                             })}
-                                        </tr>
+                                        </div>
                                     ))}
-                                </tbody>
-                            </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </main>
