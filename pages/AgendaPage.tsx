@@ -1,6 +1,6 @@
 import { FC, useState, useMemo, useEffect } from 'react';
 import { useAppContext } from '../hooks/useAppContext';
-import { getWeekStartDate, formatDate, formatDateForInput, formatUserText } from '../helpers';
+import { getWeekStartDate, formatDate, formatDateForInput, formatUserText } from '../utils/helpers';
 import { DAYS_OF_WEEK, TIME_SLOTS } from '../constants';
 import { Sala, Booking, User } from '../types';
 import Header from '../components/common/Header';
@@ -177,17 +177,17 @@ const AgendaPage: FC = () => {
     const selectedSala = salas.find(s => s.id === selectedSalaId);
 
     return (
-        <div className="relative min-h-screen w-full">
+        <div className="relative h-screen w-screen bg-gray-900">
             {/* Capa de Fondo */}
             <div
-                className="absolute inset-0 bg-cover bg-center bg-fixed z-0"
+                className="absolute inset-0 bg-cover bg-center"
                 style={{ backgroundImage: `url(${backgroundImageUrl})` }}
             />
             
             {/* Capa de Contenido Superpuesta */}
-            <div className="absolute inset-0 flex flex-col bg-gray-900/80 text-white z-10">
+            <div className="absolute inset-0 flex flex-col bg-black/70 text-white">
                 <Header />
-                <main className="flex-1 p-2 sm:p-4 md:p-6 overflow-y-auto flex flex-col">
+                <main className="flex-1 flex flex-col p-2 sm:p-4 md:p-6 overflow-hidden">
                     <div className="flex flex-col xl:flex-row justify-between items-center mb-6 gap-4">
                         {/* Controles de Navegación y Sala */}
                         <div className="flex flex-col md:flex-row items-center gap-6 w-full">
@@ -213,8 +213,8 @@ const AgendaPage: FC = () => {
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto flex-grow">
-                        <div className="grid grid-cols-[140px,repeat(5,minmax(120px,1fr))] min-w-[800px] h-full">
+                    <div className="flex-grow overflow-auto">
+                        <div className="grid grid-cols-[140px,repeat(5,minmax(120px,1fr))] min-w-[800px]">
                             {/* Esquina vacía */}
                             <div className="sticky top-0 left-0 bg-black z-20"></div> 
                             {/* Cabecera de Días */}
