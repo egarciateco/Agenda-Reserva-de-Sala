@@ -4,13 +4,13 @@
   "description": "La presente aplicación funciona como agenda de reservas para uso de salas de reuniones dentro de las bases de Telecom.",
   "icons": [
     {
-      "src": "https://i.postimg.cc/Hss2rxB2/IMAGEN-SITE.png",
+      "src": "https://i.postimg.cc/J7QPcyH9/ICONO-APP-RESERVA.png",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "any maskable"
     },
     {
-      "src": "https://i.postimg.cc/Hss2rxB2/IMAGEN-SITE.png",
+      "src": "https://i.postimg.cc/J7QPcyH9/ICONO-APP-RESERVA.png",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any maskable"

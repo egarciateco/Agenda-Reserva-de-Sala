@@ -1,116 +1,107 @@
-import { useState, FC, FormEvent } from 'react';
+
+import { useState, FC, FormEvent, ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppContext } from '../hooks/useAppContext';
 
 const LoginPage: FC = () => {
+    const { login, logoUrl } = useAppContext();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const { login, logoUrl } = useAppContext();
+    
+    // The navigation to /agenda is handled by PublicRoute after a successful login.
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         try {
             await login(email, password);
-            // La navegación ahora es manejada por PublicRoute en App.tsx
-        } catch (err) {
-            // El error es manejado por el contexto, que muestra un toast.
-            // Solo necesitamos detener el spinner de carga.
+            // On successful login, the AppContext state will change,
+            // and the PublicRoute will automatically redirect to /agenda.
+        } catch (error) {
+            // Error toast is handled by the context, so we just need to stop loading.
         } finally {
             setIsLoading(false);
         }
     };
-
+    
     return (
         <div className="relative min-h-screen flex flex-col items-center justify-center p-4 bg-black bg-opacity-50">
             <header className="absolute top-0 left-0 right-0 p-4 flex justify-start z-10">
-                 <img src={logoUrl} alt="TELECOM Logo" className="h-12 object-contain" />
+                <img src={logoUrl} alt="TELECOM Logo" className="h-12 object-contain" />
             </header>
-
-            <main className="w-full max-w-md">
-                <div className="bg-gray-900 bg-opacity-80 p-8 rounded-xl shadow-2xl backdrop-blur-md">
-                    <h2 className="text-3xl font-bold text-center text-white mb-8">Iniciar Sesión</h2>
+            
+            <main className="w-full max-w-sm">
+                 <div className="bg-gray-900 bg-opacity-80 p-8 rounded-xl shadow-2xl backdrop-blur-md text-white">
+                    <h2 className="text-3xl font-bold text-center mb-8">Iniciar Sesión</h2>
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
-                            <label className="block text-sm font-medium text-gray-300">Email</label>
-                            <div className="relative mt-1">
-                                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                                      <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                                      <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                                    </svg>
-                                </div>
-                                <input
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    required
-                                    className="block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 pl-10 pr-3 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                                />
-                            </div>
+                            <input
+                                type="email"
+                                name="email"
+                                placeholder="Email"
+                                value={email}
+                                onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+                                required
+                                className="input-style w-full"
+                            />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300">Contraseña</label>
-                            <div className="relative mt-1">
-                                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                                      <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                                    </svg>
-                                </div>
-                                <input
-                                    type={isPasswordVisible ? 'text' : 'password'}
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    required
-                                    className="block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 pl-10 pr-10 text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setIsPasswordVisible(!isPasswordVisible)}
-                                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-white"
-                                    aria-label={isPasswordVisible ? "Ocultar contraseña" : "Mostrar contraseña"}
-                                >
-                                    {isPasswordVisible ? (
-                                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.27 5.943 14.478 3 10 3a9.953 9.953 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2 2 0 012.828 2.828l1.515 1.515A4 4 0 0011 8c-2.21 0-4 1.79-4 4a4.006 4.006 0 00.97 2.473l.603.602z" clipRule="evenodd" /></svg>
-                                    ) : (
-                                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>
-                                    )}
-                                </button>
-                            </div>
+                        <div className="relative">
+                             <input
+                                type={isPasswordVisible ? 'text' : 'password'}
+                                name="password"
+                                placeholder="Contraseña"
+                                value={password}
+                                onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+                                required
+                                className="input-style w-full pr-10"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setIsPasswordVisible(!isPasswordVisible)}
+                                className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-white"
+                                aria-label={isPasswordVisible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                            >
+                                {isPasswordVisible ? (
+                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.27 5.943 14.478 3 10 3a9.953 9.953 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2 2 0 012.828 2.828l1.515 1.515A4 4 0 0011 8c-2.21 0-4 1.79-4 4a4.006 4.006 0 00.97 2.473l.603.602z" clipRule="evenodd" /></svg>
+                                ) : (
+                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>
+                                )}
+                            </button>
                         </div>
-                        <button
-                            type="submit"
-                            disabled={isLoading}
-                            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:bg-blue-800 disabled:cursor-not-allowed"
-                        >
+                        <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-md transition-colors disabled:bg-blue-800" disabled={isLoading}>
                             {isLoading ? 'Ingresando...' : 'Ingresar'}
                         </button>
                     </form>
                     <p className="mt-6 text-center text-sm text-gray-400">
                         ¿No tienes una cuenta?{' '}
                         <Link to="/register" className="font-medium text-blue-400 hover:text-blue-300">
-                            Crear Cuenta
+                            Regístrate
                         </Link>
                     </p>
                 </div>
             </main>
-            
-            <footer className="absolute bottom-4 left-4 text-xs text-left text-gray-300">
-                 <div>
+             <footer className="absolute bottom-4 left-4 text-xs text-left text-gray-300">
+                <div>
                     <p className="font-bold">Realizado por:</p>
                     <p>Esteban García. - Para uso exclusivo de Telecom Argentina S.A.</p>
                 </div>
-                <div className="mt-2 flex gap-4">
-                    <Link to="/privacy-policy" className="text-gray-400 hover:text-white underline transition-colors">
-                        Política de Privacidad
-                    </Link>
-                    <Link to="/terms-of-service" className="text-gray-400 hover:text-white underline transition-colors">
-                        Términos de Servicio
-                    </Link>
-                </div>
             </footer>
+             <style>{`
+                .input-style {
+                    background-color: #374151; /* bg-gray-700 */
+                    border: 1px solid #4B5563; /* border-gray-600 */
+                    border-radius: 0.375rem; /* rounded-md */
+                    padding: 0.5rem 0.75rem;
+                    color: white;
+                }
+                .input-style:focus {
+                    outline: none;
+                    box-shadow: 0 0 0 2px #3B82F6; /* focus:ring-blue-500 */
+                    border-color: #3B82F6; /* focus:border-blue-500 */
+                }
+            `}</style>
         </div>
     );
 };
